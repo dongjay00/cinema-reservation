@@ -1,0 +1,7 @@
+{
+  "name": "@cinema/api",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
