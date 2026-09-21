@@ -1,12 +1,6 @@
-import express from "express";
-import { ping } from "@cinema/shared";
+import { createApp } from "./infrastructure/http/app";
 
-const app = express();
-app.use(express.json());
-
-app.get("/health", (_req, res) => {
-  res.json({ server: "ok", shared: ping() });
-});
+const app = createApp();
 
 const PORT = 4000;
 app.listen(PORT, () => console.log(`api on http://localhost:${PORT}`));
