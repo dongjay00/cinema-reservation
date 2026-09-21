@@ -5,6 +5,7 @@
     "dev:api": "npm run dev --workspace @cinema/api",
     "dev:web": "npm run dev --workspace @cinema/web",
     "test:api": "npm run test --workspace @cinema/api",
+    "test:web": "npm run test --workspace @cinema/web",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "workspaces": [

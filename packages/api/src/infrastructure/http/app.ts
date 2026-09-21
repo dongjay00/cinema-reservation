@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { ping } from "@cinema/shared";
 import { CreateReservationUseCase } from "../../application/use-cases/create-reservation";
 import { CancelReservationUseCase } from "../../application/use-cases/cancel-reservation";
@@ -12,6 +13,7 @@ export function createApp() {
 
   const app = express();
   app.use(express.json());
+  app.use(cors());
 
   app.get("/health", (_req, res) => {
     res.json({ server: "ok", shared: ping() });
