@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "dev:api": "npm run dev --workspace @cinema/api",
-    "dev:web": "npm run dev --workspace @cinema/web"
+    "dev:web": "npm run dev --workspace @cinema/web",
+    "test:api": "npm run test --workspace @cinema/api",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "workspaces": [
     "packages/*"
