@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import { createApp } from "../app";
+import { InMemoryReservationRepository } from "../../in-memory-reservation-repository";
 
 let app: Express;
 
 beforeEach(() => {
-  app = createApp();
+  app = createApp(new InMemoryReservationRepository());
 });
 
 describe("POST /reservations", () => {

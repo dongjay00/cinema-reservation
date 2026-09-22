@@ -16,6 +16,7 @@ export class Reservation {
     seat: Seat,
     customerEmail: string,
     id: string = randomUUID(),
+    status: ReservationStatus = "CONFIRMED",
   ) {
     if (showtimeId.trim().length === 0) {
       throw new Error("Reservation showtimeId must not be empty");
@@ -28,7 +29,7 @@ export class Reservation {
     this.showtimeId = showtimeId;
     this.seat = seat;
     this.customerEmail = customerEmail;
-    this._status = "CONFIRMED";
+    this._status = status;
   }
 
   get status(): ReservationStatus {
