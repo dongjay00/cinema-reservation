@@ -1,36 +1,39 @@
+import type { CSSProperties } from "react";
 import { Seat } from "../domain/seat";
-
-const ROWS = [
-  { row: "A", numbers: [1, 2, 3, 4, 5, 6, 7, 8] },
-  { row: "B", numbers: [1, 2, 3, 4, 5, 6, 7, 8] },
-  { row: "C", numbers: [1, 2, 3, 4, 5, 6, 7, 8] },
-];
+import type { SeatAvailability } from "../application/ports/showtime-repository";
 
 interface SeatPickerProps {
+  seats: SeatAvailability[];
   selected: Seat | undefined;
   onSelect: (seat: Seat) => void;
 }
 
-export function SeatPicker({ selected, onSelect }: SeatPickerProps) {
+export function SeatPicker({ seats, selected, onSelect }: SeatPickerProps) {
   return (
-    <div>
-      {ROWS.map(({ row, numbers }) => (
-        <div key={row}>
-          {numbers.map((number) => {
-            const seat = new Seat(row, number);
-            const isSelected = selected?.equals(seat) ?? false;
-            return (
-              <button
-                key={seat.label}
-                onClick={() => onSelect(seat)}
-                style={isSelected ? { background: "steelblue", color: "white" } : undefined}
-              >
-                {seat.label}
-              </button>
-            );
-          })}
-        </div>
-      ))}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, margin: "12px 0" }}>
+      {seats.map(({ seat, available }) => {
+        const isSelected = selected?.equals(seat) ?? false;
+        return (
+          <button
+            key={seat.label}
+            disabled={!available && !isSelected}
+            onClick={() => onSelect(seat)}
+            style={styleFor(isSelected, available)}
+          >
+            {seat.label}
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+function styleFor(isSelected: boolean, available: boolean): CSSProperties {
+  if (isSelected) {
+    return { background: "steelblue", color: "white" };
+  }
+  if (!available) {
+    return { background: "#eee", color: "#aaa", cursor: "not-allowed" };
+  }
+  return {};
 }
