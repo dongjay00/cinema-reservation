@@ -5,6 +5,12 @@ import { ReservationRepository } from "../application/ports/reservation-reposito
 export class InMemoryReservationRepository implements ReservationRepository {
   private readonly reservations: Array<Reservation> = [];
 
+  async findActiveSeatsByShowtime(showtimeId: string): Promise<Seat[]> {
+    return this.reservations
+      .filter((r) => r.showtimeId === showtimeId && r.status === "CONFIRMED")
+      .map((r) => r.seat);
+  }
+
   async save(reservation: Reservation): Promise<void> {
     const index = this.reservations.findIndex((r) => r.id === reservation.id);
     if (index >= 0) {

@@ -65,6 +65,17 @@ export class SqliteReservationRepository implements ReservationRepository {
 
     return row ? toReservation(row) : undefined;
   }
+
+  async findActiveSeatsByShowtime(showtimeId: string): Promise<Seat[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM reservations
+         WHERE showtime_id = ? AND status = 'CONFIRMED'`,
+      )
+      .all(showtimeId) as ReservationRow[];
+
+    return rows.map((row) => new Seat(row.seat_row, row.seat_number));
+  }
 }
 
 function toReservation(row: ReservationRow): Reservation {

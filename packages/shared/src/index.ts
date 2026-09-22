@@ -22,3 +22,14 @@ export interface ReservationDto {
   customerEmail: string;
   status: ReservationStatusDto;
 }
+
+export interface ShowtimeDto {
+  id: string;
+  movieTitle: string;
+  startsAt: string;
+}
+
+export interface SeatAvailabilityDto {
+  seatLabel: string;
+  available: boolean;
+}

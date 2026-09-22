@@ -64,4 +64,20 @@ describe("SqliteReservationRepository", () => {
     const loaded = await repo.findById("res-1");
     expect(loaded?.status).toBe("CANCELLED");
   });
+
+  it("findActiveSeatsByShowtime: 해당 회차의 활성 좌석만 반환한다", async () => {
+    const repo = makeRepo();
+    const showtimeId = "showtime-1";
+
+    await repo.save(new Reservation(showtimeId, new Seat("A", 1), "hoon@example.com"));
+    await repo.save(new Reservation(showtimeId, new Seat("B", 2), "hoon@example.com"));
+
+    const cancelled = new Reservation(showtimeId, new Seat("C", 3), "hoon@example.com");
+    cancelled.cancel();
+    await repo.save(cancelled);
+
+    const active = await repo.findActiveSeatsByShowtime(showtimeId);
+
+    expect(active.map((s) => s.label).sort()).toEqual(["A-1", "B-2"]);
+  });
 });
