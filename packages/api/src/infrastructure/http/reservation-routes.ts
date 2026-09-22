@@ -1,9 +1,12 @@
 import { Router } from "express";
+import {
+  DuplicateReservationError,
+  ReservationNotFoundError,
+} from "../../application/errors";
+import type { CancelReservationUseCase } from "../../application/use-cases/cancel-reservation";
+import type { CreateReservationUseCase } from "../../application/use-cases/create-reservation";
+import type { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
-import { Reservation } from "../../domain/reservation";
-import { DuplicateReservationError, ReservationNotFoundError } from "../../application/errors";
-import { CreateReservationUseCase } from "../../application/use-cases/create-reservation";
-import { CancelReservationUseCase } from "../../application/use-cases/cancel-reservation";
 
 export function createReservationRouter(
   createReservationUseCase: CreateReservationUseCase,
@@ -26,7 +29,9 @@ export function createReservationRouter(
       if (err instanceof DuplicateReservationError) {
         res.status(409).json({ error: err.message });
       } else {
-        res.status(400).json({ error: err instanceof Error ? err.message : "invalid request" });
+        res.status(400).json({
+          error: err instanceof Error ? err.message : "invalid request",
+        });
       }
     }
   });
@@ -39,7 +44,9 @@ export function createReservationRouter(
       if (err instanceof ReservationNotFoundError) {
         res.status(404).json({ error: err.message });
       } else {
-        res.status(400).json({ error: err instanceof Error ? err.message : "invalid request" });
+        res.status(400).json({
+          error: err instanceof Error ? err.message : "invalid request",
+        });
       }
     }
   });

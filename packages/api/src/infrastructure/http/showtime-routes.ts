@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { Showtime } from "../../domain/showtime";
 import { ShowtimeNotFoundError } from "../../application/errors";
-import { ListShowtimesUseCase } from "../../application/use-cases/list-showtimes";
-import { GetShowtimeSeatsUseCase } from "../../application/use-cases/get-showtime-seats";
+import type { GetShowtimeSeatsUseCase } from "../../application/use-cases/get-showtime-seats";
+import type { ListShowtimesUseCase } from "../../application/use-cases/list-showtimes";
+import type { Showtime } from "../../domain/showtime";
 
 export function createShowtimeRouter(
   listShowtimesUseCase: ListShowtimesUseCase,
@@ -18,12 +18,19 @@ export function createShowtimeRouter(
   router.get("/showtimes/:id/seats", async (req, res) => {
     try {
       const seats = await getShowtimeSeatsUseCase.execute(req.params.id);
-      res.json(seats.map(({ seat, available }) => ({ seatLabel: seat.label, available })));
+      res.json(
+        seats.map(({ seat, available }) => ({
+          seatLabel: seat.label,
+          available,
+        })),
+      );
     } catch (err) {
       if (err instanceof ShowtimeNotFoundError) {
         res.status(404).json({ error: err.message });
       } else {
-        res.status(500).json({ error: err instanceof Error ? err.message : "server error" });
+        res
+          .status(500)
+          .json({ error: err instanceof Error ? err.message : "server error" });
       }
     }
   });

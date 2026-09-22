@@ -1,4 +1,4 @@
-import { Reservation } from "../../domain/reservation";
+import type { Reservation } from "../../domain/reservation";
 import { ReservationNotFoundError } from "../errors";
 import type { CancelReservationRepository } from "../ports/reservation-repository";
 
@@ -9,7 +9,9 @@ export class CancelReservationUseCase {
     const reservation = await this.repository.findById(reservationId);
 
     if (!reservation) {
-      throw new ReservationNotFoundError(`Reservation ${reservationId} not found`);
+      throw new ReservationNotFoundError(
+        `Reservation ${reservationId} not found`,
+      );
     }
 
     reservation.cancel();

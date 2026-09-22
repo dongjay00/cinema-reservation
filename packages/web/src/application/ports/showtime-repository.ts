@@ -1,5 +1,5 @@
-import type { Showtime } from "../../domain/showtime";
 import type { Seat } from "../../domain/seat";
+import type { Showtime } from "../../domain/showtime";
 
 export type SeatAvailability = {
   seat: Seat;

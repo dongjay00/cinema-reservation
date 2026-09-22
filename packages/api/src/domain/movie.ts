@@ -5,7 +5,11 @@ export class Movie {
   readonly title: string;
   readonly durationMinutes: number;
 
-  constructor(title: string, durationMinutes: number, id: string = randomUUID()) {
+  constructor(
+    title: string,
+    durationMinutes: number,
+    id: string = randomUUID(),
+  ) {
     const trimmed = title.trim();
     if (trimmed.length === 0) {
       throw new Error("Movie title must not be empty");

@@ -1,7 +1,10 @@
 import type { SeatAvailabilityDto, ShowtimeDto } from "@cinema/shared";
-import { Showtime } from "../../domain/showtime";
+import type {
+  SeatAvailability,
+  ShowtimeRepository,
+} from "../../application/ports/showtime-repository";
 import { Seat } from "../../domain/seat";
-import type { SeatAvailability, ShowtimeRepository } from "../../application/ports/showtime-repository";
+import { Showtime } from "../../domain/showtime";
 
 export class HttpShowtimeRepository implements ShowtimeRepository {
   private readonly baseUrl: string;

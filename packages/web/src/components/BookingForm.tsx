@@ -6,7 +6,13 @@ interface BookingFormProps {
   onSubmit: () => void;
 }
 
-export function BookingForm({ email, onEmailChange, canSubmit, submitting, onSubmit }: BookingFormProps) {
+export function BookingForm({
+  email,
+  onEmailChange,
+  canSubmit,
+  submitting,
+  onSubmit,
+}: BookingFormProps) {
   return (
     <div style={{ marginTop: 16 }}>
       <input
@@ -15,7 +21,11 @@ export function BookingForm({ email, onEmailChange, canSubmit, submitting, onSub
         placeholder="예약자 이메일"
         onChange={(e) => onEmailChange(e.target.value)}
       />
-      <button disabled={!canSubmit || submitting} onClick={onSubmit}>
+      <button
+        type="button"
+        disabled={!canSubmit || submitting}
+        onClick={onSubmit}
+      >
         {submitting ? "예약 중..." : "예약하기"}
       </button>
     </div>

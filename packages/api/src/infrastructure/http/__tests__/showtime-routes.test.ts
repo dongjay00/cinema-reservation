@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import request from "supertest";
 import type { Express } from "express";
+import request from "supertest";
+import { describe, expect, it } from "vitest";
 import { InMemoryReservationRepository } from "../../in-memory-reservation-repository";
 import { createApp } from "../app";
 

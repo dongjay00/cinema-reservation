@@ -1,5 +1,5 @@
-import { Showtime } from "../../domain/showtime";
-import { Seat } from "../../domain/seat";
+import type { Seat } from "../../domain/seat";
+import type { Showtime } from "../../domain/showtime";
 
 export interface ShowtimeRepository {
   findAll(): Promise<Showtime[]>;

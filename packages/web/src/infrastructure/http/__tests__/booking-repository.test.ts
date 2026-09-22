@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Seat } from "../../../domain/seat";
 import { DuplicateSeatError } from "../../../application/errors";
+import { Seat } from "../../../domain/seat";
 import { HttpReservationRepository } from "../booking-repository";
 
 describe("HttpReservationRepository (HTTP 어댑터)", () => {
@@ -18,7 +18,9 @@ describe("HttpReservationRepository (HTTP 어댑터)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 201 })),
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(body), { status: 201 })),
     );
 
     const repo = new HttpReservationRepository("http://localhost:4000");
@@ -36,12 +38,20 @@ describe("HttpReservationRepository (HTTP 어댑터)", () => {
   it("create: 409 응답은 DuplicateSeatError로 변환한다", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "already reserved" }), { status: 409 })),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "already reserved" }), {
+          status: 409,
+        }),
+      ),
     );
 
     const repo = new HttpReservationRepository("http://localhost:4000");
     await expect(
-      repo.create({ showtimeId: "showtime-1", seat: new Seat("A", 7), customerEmail: "hoon@example.com" }),
+      repo.create({
+        showtimeId: "showtime-1",
+        seat: new Seat("A", 7),
+        customerEmail: "hoon@example.com",
+      }),
     ).rejects.toBeInstanceOf(DuplicateSeatError);
   });
 
@@ -55,7 +65,9 @@ describe("HttpReservationRepository (HTTP 어댑터)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
     );
 
     const repo = new HttpReservationRepository("http://localhost:4000");

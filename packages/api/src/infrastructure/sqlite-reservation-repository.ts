@@ -1,7 +1,7 @@
-import { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync } from "node:sqlite";
+import type { ReservationRepository } from "../application/ports/reservation-repository";
 import { Reservation } from "../domain/reservation";
 import { Seat } from "../domain/seat";
-import type { ReservationRepository } from "../application/ports/reservation-repository";
 
 const MIGRATION = `
 CREATE TABLE IF NOT EXISTS reservations (
@@ -49,13 +49,16 @@ export class SqliteReservationRepository implements ReservationRepository {
   }
 
   async findById(id: string): Promise<Reservation | undefined> {
-    const row = this.db.prepare("SELECT * FROM reservations WHERE id = ?").get(id) as
-      | ReservationRow
-      | undefined;
+    const row = this.db
+      .prepare("SELECT * FROM reservations WHERE id = ?")
+      .get(id) as ReservationRow | undefined;
     return row ? toReservation(row) : undefined;
   }
 
-  async findActiveByShowtimeAndSeat(showtimeId: string, seat: Seat): Promise<Reservation | undefined> {
+  async findActiveByShowtimeAndSeat(
+    showtimeId: string,
+    seat: Seat,
+  ): Promise<Reservation | undefined> {
     const row = this.db
       .prepare(
         `SELECT * FROM reservations

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Movie } from "./movie";
+import type { Movie } from "./movie";
 
 export class Showtime {
   readonly id: string;

@@ -30,6 +30,8 @@ describe("Reservation (AC-09~12)", () => {
 
   it("AC-12: 잘못된 이메일로 예약 생성은 예외를 던진다", () => {
     expect(() => new Reservation(showtimeId(), seat(), "")).toThrow();
-    expect(() => new Reservation(showtimeId(), seat(), "not-an-email")).toThrow();
+    expect(
+      () => new Reservation(showtimeId(), seat(), "not-an-email"),
+    ).toThrow();
   });
 });

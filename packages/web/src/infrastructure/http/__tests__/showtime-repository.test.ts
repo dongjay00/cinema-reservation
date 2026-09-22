@@ -7,8 +7,19 @@ describe("HttpShowtimeRepository (HTTP 어댑터)", () => {
   });
 
   it("listShowtimes: DTO를 도메인 Showtime으로 변환한다", async () => {
-    const body = [{ id: "showtime-1", movieTitle: "인셉션", startsAt: "2026-09-20T10:00:00.000Z" }];
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })));
+    const body = [
+      {
+        id: "showtime-1",
+        movieTitle: "인셉션",
+        startsAt: "2026-09-20T10:00:00.000Z",
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+    );
 
     const repo = new HttpShowtimeRepository("http://localhost:4000");
     const showtimes = await repo.listShowtimes();
@@ -22,7 +33,12 @@ describe("HttpShowtimeRepository (HTTP 어댑터)", () => {
       { seatLabel: "A-1", available: false },
       { seatLabel: "A-2", available: true },
     ];
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+    );
 
     const repo = new HttpShowtimeRepository("http://localhost:4000");
     const seats = await repo.listSeats("showtime-1");

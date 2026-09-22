@@ -1,8 +1,11 @@
-import { Reservation } from "../../domain/reservation";
-import { Seat } from "../../domain/seat";
+import type { Reservation } from "../../domain/reservation";
+import type { Seat } from "../../domain/seat";
 
 export interface CreateReservationRepository {
-  findActiveByShowtimeAndSeat(showtimeId: string, seat: Seat): Promise<Reservation | undefined>;
+  findActiveByShowtimeAndSeat(
+    showtimeId: string,
+    seat: Seat,
+  ): Promise<Reservation | undefined>;
   save(reservation: Reservation): Promise<void>;
 }
 

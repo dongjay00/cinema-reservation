@@ -27,16 +27,26 @@ describe("CreateReservationUseCase (FR-07 중복 예약 금지)", () => {
 
   it("같은 회차·같은 좌석에 활성 예약이 있으면 중복 예약을 거부한다", async () => {
     const { useCase } = makeUseCase();
-    const input = { showtimeId: "showtime-1", seat: new Seat("A", 7), customerEmail: "hoon@example.com" };
+    const input = {
+      showtimeId: "showtime-1",
+      seat: new Seat("A", 7),
+      customerEmail: "hoon@example.com",
+    };
 
     await useCase.execute(input);
 
-    await expect(useCase.execute(input)).rejects.toBeInstanceOf(DuplicateReservationError);
+    await expect(useCase.execute(input)).rejects.toBeInstanceOf(
+      DuplicateReservationError,
+    );
   });
 
   it("취소된 좌석은 다시 예약할 수 있다", async () => {
     const { useCase } = makeUseCase();
-    const input = { showtimeId: "showtime-1", seat: new Seat("A", 7), customerEmail: "hoon@example.com" };
+    const input = {
+      showtimeId: "showtime-1",
+      seat: new Seat("A", 7),
+      customerEmail: "hoon@example.com",
+    };
 
     const first = await useCase.execute(input);
     first.cancel();

@@ -1,6 +1,6 @@
-import { Reservation } from "../domain/reservation";
-import { Seat } from "../domain/seat";
-import { ReservationRepository } from "../application/ports/reservation-repository";
+import type { ReservationRepository } from "../application/ports/reservation-repository";
+import type { Reservation } from "../domain/reservation";
+import type { Seat } from "../domain/seat";
 
 export class InMemoryReservationRepository implements ReservationRepository {
   private readonly reservations: Array<Reservation> = [];
@@ -24,9 +24,15 @@ export class InMemoryReservationRepository implements ReservationRepository {
     return this.reservations.find((r) => r.id === id);
   }
 
-  async findActiveByShowtimeAndSeat(showtimeId: string, seat: Seat): Promise<Reservation | undefined> {
+  async findActiveByShowtimeAndSeat(
+    showtimeId: string,
+    seat: Seat,
+  ): Promise<Reservation | undefined> {
     return this.reservations.find(
-      (r) => r.showtimeId === showtimeId && r.seat.equals(seat) && r.status === "CONFIRMED",
+      (r) =>
+        r.showtimeId === showtimeId &&
+        r.seat.equals(seat) &&
+        r.status === "CONFIRMED",
     );
   }
 }

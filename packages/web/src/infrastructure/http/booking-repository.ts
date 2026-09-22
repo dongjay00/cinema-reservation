@@ -1,8 +1,11 @@
 import type { CreateReservationRequest, ReservationDto } from "@cinema/shared";
+import { DuplicateSeatError } from "../../application/errors";
+import type {
+  CreateReservationParams,
+  ReservationRepository,
+} from "../../application/ports/reservation-repository";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
-import { DuplicateSeatError } from "../../application/errors";
-import type { CreateReservationParams, ReservationRepository } from "../../application/ports/reservation-repository";
 
 export class HttpReservationRepository implements ReservationRepository {
   private readonly baseUrl: string;
@@ -49,5 +52,11 @@ async function toDto(res: Response): Promise<ReservationDto> {
 
 function toReservation(dto: ReservationDto): Reservation {
   const [row, number] = dto.seatLabel.split("-");
-  return new Reservation(dto.id, dto.showtimeId, new Seat(row, Number(number)), dto.customerEmail, dto.status);
+  return new Reservation(
+    dto.id,
+    dto.showtimeId,
+    new Seat(row, Number(number)),
+    dto.customerEmail,
+    dto.status,
+  );
 }

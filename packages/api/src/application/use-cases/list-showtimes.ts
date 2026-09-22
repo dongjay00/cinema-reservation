@@ -1,4 +1,4 @@
-import { Showtime } from "../../domain/showtime";
+import type { Showtime } from "../../domain/showtime";
 import type { ShowtimeRepository } from "../ports/showtime-repository";
 
 export class ListShowtimesUseCase {

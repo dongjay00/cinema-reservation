@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import request from "supertest";
 import type { Express } from "express";
-import { createApp } from "../app";
+import request from "supertest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { InMemoryReservationRepository } from "../../in-memory-reservation-repository";
+import { createApp } from "../app";
 
 let app: Express;
 
@@ -12,9 +12,12 @@ beforeEach(() => {
 
 describe("POST /reservations", () => {
   it("유효한 요청이면 201과 CONFIRMED 예약을 반환한다", async () => {
-    const res = await request(app)
-      .post("/reservations")
-      .send({ showtimeId: "showtime-1", row: "A", number: 7, customerEmail: "hoon@example.com" });
+    const res = await request(app).post("/reservations").send({
+      showtimeId: "showtime-1",
+      row: "A",
+      number: 7,
+      customerEmail: "hoon@example.com",
+    });
 
     expect(res.status).toBe(201);
     expect(res.body.status).toBe("CONFIRMED");
@@ -23,7 +26,12 @@ describe("POST /reservations", () => {
   });
 
   it("같은 회차·같은 좌석이면 409(충돌)를 반환한다", async () => {
-    const body = { showtimeId: "showtime-1", row: "A", number: 7, customerEmail: "hoon@example.com" };
+    const body = {
+      showtimeId: "showtime-1",
+      row: "A",
+      number: 7,
+      customerEmail: "hoon@example.com",
+    };
 
     await request(app).post("/reservations").send(body);
     const res = await request(app).post("/reservations").send(body);
@@ -34,11 +42,16 @@ describe("POST /reservations", () => {
 
 describe("POST /reservations/:id/cancel", () => {
   it("주어진 예약을 취소하고 200과 CANCELLED를 반환한다", async () => {
-    const created = await request(app)
-      .post("/reservations")
-      .send({ showtimeId: "showtime-1", row: "B", number: 3, customerEmail: "hoon@example.com" });
+    const created = await request(app).post("/reservations").send({
+      showtimeId: "showtime-1",
+      row: "B",
+      number: 3,
+      customerEmail: "hoon@example.com",
+    });
 
-    const res = await request(app).post(`/reservations/${created.body.id}/cancel`);
+    const res = await request(app).post(
+      `/reservations/${created.body.id}/cancel`,
+    );
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("CANCELLED");

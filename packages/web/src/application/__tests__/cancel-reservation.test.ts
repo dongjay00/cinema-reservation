@@ -10,13 +10,21 @@ class FakeReservationRepository implements ReservationRepository {
   }
 
   async cancel(id: string): Promise<Reservation> {
-    return new Reservation(id, "showtime-1", new Seat("A", 1), "hoon@example.com", "CANCELLED");
+    return new Reservation(
+      id,
+      "showtime-1",
+      new Seat("A", 1),
+      "hoon@example.com",
+      "CANCELLED",
+    );
   }
 }
 
 describe("CancelReservationUseCase", () => {
   it("취소를 수행하고 취소된 예약을 반환한다", async () => {
-    const useCase = new CancelReservationUseCase(new FakeReservationRepository());
+    const useCase = new CancelReservationUseCase(
+      new FakeReservationRepository(),
+    );
 
     const reservation = await useCase.execute("res-1");
 

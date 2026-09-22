@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { ReservationStatus } from "./reservation-status";
-import { Seat } from "./seat";
+import type { ReservationStatus } from "./reservation-status";
+import type { Seat } from "./seat";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,7 +22,9 @@ export class Reservation {
       throw new Error("Reservation showtimeId must not be empty");
     }
     if (!EMAIL_PATTERN.test(customerEmail)) {
-      throw new Error("Reservation customerEmail must be a valid email address");
+      throw new Error(
+        "Reservation customerEmail must be a valid email address",
+      );
     }
 
     this.id = id;

@@ -1,9 +1,9 @@
 export interface PingResult {
-    pong: boolean;
+  pong: boolean;
 }
 
 export function ping(): PingResult {
-    return { pong: true };
+  return { pong: true };
 }
 
 export type ReservationStatusDto = "CONFIRMED" | "CANCELLED";

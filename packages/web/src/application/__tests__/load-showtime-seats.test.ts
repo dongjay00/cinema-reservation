@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Seat } from "../../domain/seat";
 import type { Showtime } from "../../domain/showtime";
-import type { SeatAvailability, ShowtimeRepository } from "../ports/showtime-repository";
+import type {
+  SeatAvailability,
+  ShowtimeRepository,
+} from "../ports/showtime-repository";
 import { LoadShowtimeSeatsUseCase } from "../use-cases/load-showtime-seats";
 
 class FakeShowtimeRepository implements ShowtimeRepository {

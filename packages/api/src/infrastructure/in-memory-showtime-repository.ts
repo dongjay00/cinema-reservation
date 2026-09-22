@@ -1,7 +1,7 @@
-import { Movie } from "../domain/movie";
-import { Showtime } from "../domain/showtime";
-import { Seat } from "../domain/seat";
 import type { ShowtimeRepository } from "../application/ports/showtime-repository";
+import { Movie } from "../domain/movie";
+import { Seat } from "../domain/seat";
+import { Showtime } from "../domain/showtime";
 
 const LAYOUT = [
   { row: "A", numbers: [1, 2, 3, 4, 5, 6, 7, 8] },

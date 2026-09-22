@@ -1,4 +1,4 @@
-import { Seat } from "../../domain/seat";
+import type { Seat } from "../../domain/seat";
 import { ShowtimeNotFoundError } from "../errors";
 import type { ShowtimeSeatsQuery } from "../ports/reservation-repository";
 import type { ShowtimeRepository } from "../ports/showtime-repository";
@@ -20,7 +20,8 @@ export class GetShowtimeSeatsUseCase {
       throw new ShowtimeNotFoundError(`Showtime ${showtimeId} not found`);
     }
 
-    const occupied = await this.reservationRepository.findActiveSeatsByShowtime(showtimeId);
+    const occupied =
+      await this.reservationRepository.findActiveSeatsByShowtime(showtimeId);
     const seats = await this.showtimeRepository.listSeats();
 
     return seats.map((seat) => ({

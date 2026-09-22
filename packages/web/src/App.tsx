@@ -1,26 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Showtime } from "./domain/showtime";
-import type { Seat } from "./domain/seat";
-import type { Reservation } from "./domain/reservation";
+import { DuplicateSeatError } from "./application/errors";
 import type { SeatAvailability } from "./application/ports/showtime-repository";
-import { BookingDraft } from "./domain/booking-draft";
-import { ReserveSeatUseCase } from "./application/use-cases/reserve-seat";
 import { CancelReservationUseCase } from "./application/use-cases/cancel-reservation";
-import { LoadShowtimesUseCase } from "./application/use-cases/load-showtimes";
 import { LoadShowtimeSeatsUseCase } from "./application/use-cases/load-showtime-seats";
+import { LoadShowtimesUseCase } from "./application/use-cases/load-showtimes";
+import { ReserveSeatUseCase } from "./application/use-cases/reserve-seat";
+import { BookingForm } from "./components/BookingForm";
+import { SeatPicker } from "./components/SeatPicker";
+import { ShowtimeSelector } from "./components/ShowtimeSelector";
+import { BookingDraft } from "./domain/booking-draft";
+import type { Reservation } from "./domain/reservation";
+import type { Seat } from "./domain/seat";
+import type { Showtime } from "./domain/showtime";
 import { HttpReservationRepository } from "./infrastructure/http/booking-repository";
 import { HttpShowtimeRepository } from "./infrastructure/http/showtime-repository";
-import { DuplicateSeatError } from "./application/errors";
-import { SeatPicker } from "./components/SeatPicker";
-import { BookingForm } from "./components/BookingForm";
-import { ShowtimeSelector } from "./components/ShowtimeSelector";
 
 const BASE_URL = "http://localhost:4000";
 
-const reserveSeat = new ReserveSeatUseCase(new HttpReservationRepository(BASE_URL));
-const cancelReservation = new CancelReservationUseCase(new HttpReservationRepository(BASE_URL));
-const loadShowtimes = new LoadShowtimesUseCase(new HttpShowtimeRepository(BASE_URL));
-const loadShowtimeSeats = new LoadShowtimeSeatsUseCase(new HttpShowtimeRepository(BASE_URL));
+const reserveSeat = new ReserveSeatUseCase(
+  new HttpReservationRepository(BASE_URL),
+);
+const cancelReservation = new CancelReservationUseCase(
+  new HttpReservationRepository(BASE_URL),
+);
+const loadShowtimes = new LoadShowtimesUseCase(
+  new HttpShowtimeRepository(BASE_URL),
+);
+const loadShowtimeSeats = new LoadShowtimeSeatsUseCase(
+  new HttpShowtimeRepository(BASE_URL),
+);
 
 export default function App() {
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
@@ -111,7 +119,11 @@ export default function App() {
         onSelect={setSelectedShowtimeId}
       />
 
-      <SeatPicker seats={seats} selected={selectedSeat} onSelect={setSelectedSeat} />
+      <SeatPicker
+        seats={seats}
+        selected={selectedSeat}
+        onSelect={setSelectedSeat}
+      />
 
       <BookingForm
         email={email}
@@ -126,10 +138,11 @@ export default function App() {
       {reservation && (
         <div>
           <p style={{ color: "green" }}>
-            예약: {reservation.seat.label} / {reservation.id} / {reservation.status}
+            예약: {reservation.seat.label} / {reservation.id} /{" "}
+            {reservation.status}
           </p>
           {reservation.status === "CONFIRMED" && (
-            <button onClick={handleCancel} disabled={busy}>
+            <button type="button" onClick={handleCancel} disabled={busy}>
               예약 취소
             </button>
           )}
