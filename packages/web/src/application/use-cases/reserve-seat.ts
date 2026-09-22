@@ -1,11 +1,11 @@
 import type { BookingDraft } from "../../domain/booking-draft";
 import type { Reservation } from "../../domain/reservation";
-import type { ReservationRepository } from "../ports/reservation-repository";
+import type { ReservationCreator } from "../ports/reservation-repository";
 
 export class ReserveSeatUseCase {
-  private readonly repository: ReservationRepository;
+  private readonly repository: ReservationCreator;
 
-  constructor(repository: ReservationRepository) {
+  constructor(repository: ReservationCreator) {
     this.repository = repository;
   }
 

@@ -7,7 +7,12 @@ export interface CreateReservationParams {
   customerEmail: string;
 }
 
-export interface ReservationRepository {
+export interface ReservationCreator {
   create(params: CreateReservationParams): Promise<Reservation>;
+}
+
+export interface ReservationCanceller {
   cancel(id: string): Promise<Reservation>;
 }
+
+export type ReservationRepository = ReservationCreator & ReservationCanceller;

@@ -1,7 +1,7 @@
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
 import { DuplicateReservationError } from "../errors";
-import { ReservationRepository } from "../ports/reservation-repository";
+import type { CreateReservationRepository } from "../ports/reservation-repository";
 
 export interface CreateReservationInput {
   showtimeId: string;
@@ -10,7 +10,7 @@ export interface CreateReservationInput {
 }
 
 export class CreateReservationUseCase {
-  constructor(private readonly repository: ReservationRepository) {}
+  constructor(private readonly repository: CreateReservationRepository) {}
 
   async execute(input: CreateReservationInput): Promise<Reservation> {
     const existing = await this.repository.findActiveByShowtimeAndSeat(input.showtimeId, input.seat);

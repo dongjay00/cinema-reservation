@@ -1,9 +1,9 @@
 import { Reservation } from "../../domain/reservation";
 import { ReservationNotFoundError } from "../errors";
-import { ReservationRepository } from "../ports/reservation-repository";
+import type { CancelReservationRepository } from "../ports/reservation-repository";
 
 export class CancelReservationUseCase {
-  constructor(private readonly repository: ReservationRepository) {}
+  constructor(private readonly repository: CancelReservationRepository) {}
 
   async execute(reservationId: string): Promise<Reservation> {
     const reservation = await this.repository.findById(reservationId);

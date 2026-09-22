@@ -1,6 +1,6 @@
 import { Seat } from "../../domain/seat";
 import { ShowtimeNotFoundError } from "../errors";
-import type { ReservationRepository } from "../ports/reservation-repository";
+import type { ShowtimeSeatsQuery } from "../ports/reservation-repository";
 import type { ShowtimeRepository } from "../ports/showtime-repository";
 
 export type SeatAvailability = {
@@ -10,7 +10,7 @@ export type SeatAvailability = {
 
 export class GetShowtimeSeatsUseCase {
   constructor(
-    private readonly reservationRepository: ReservationRepository,
+    private readonly reservationRepository: ShowtimeSeatsQuery,
     private readonly showtimeRepository: ShowtimeRepository,
   ) {}
 

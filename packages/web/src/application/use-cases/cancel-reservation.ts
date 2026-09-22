@@ -1,10 +1,10 @@
 import type { Reservation } from "../../domain/reservation";
-import type { ReservationRepository } from "../ports/reservation-repository";
+import type { ReservationCanceller } from "../ports/reservation-repository";
 
 export class CancelReservationUseCase {
-  private readonly repository: ReservationRepository;
+  private readonly repository: ReservationCanceller;
 
-  constructor(repository: ReservationRepository) {
+  constructor(repository: ReservationCanceller) {
     this.repository = repository;
   }
 
