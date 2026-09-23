@@ -39,8 +39,15 @@ packages/api/src/
 ## 실행
 
 ```bash
-npm run dev:api       # tsx watch, @ http://localhost:4000
-npm run test --workspace @cinema/api   # 33 tests
+npm run dev:api       # tsx watch, @ http://localhost:4000 — 기본 SQLite(data.db)
+npm run test --workspace @cinema/api   # 33 + 6(Postgres, DATABASE_URL 있으면) tests
 ```
 
-`data.db`는 실행 중 생성되는 런타임 산출물이며 git에 저장되지 않습니다.
+### Postgres로 실행
+
+```bash
+docker compose up -d                                                 # 루트에 있는 postgres 컨테이너
+DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
+```
+
+저장소 선택은 `index.ts`(Composition Root) 한 곳에서만 일어납니다. `data.db`는 SQLite 런타임 산출물이며 git에 저장되지 않습니다.

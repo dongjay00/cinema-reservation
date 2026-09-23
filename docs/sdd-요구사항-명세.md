@@ -116,3 +116,32 @@ Feature: 영화 좌석 예약
 - FR-07의 실현: `ReservationRepository` 인터페이스 + `InMemoryReservationRepository` (의존성 역전 실습)
 - 애플리케이션 계층: `CreateReservation`, `CancelReservation` Use Case
 - 제출용 프레젠테이션 및 HTTP 어댑터
+
+---
+
+## 마일스톤 진행 기록
+
+### M2: 예약 저장소 Postgres 교체 (2026-09-23)
+
+**목표** — 저장소 구현을 추가하고 조립 루트에서 갈아끼우는 것으로, 도메인·유스케이스·포트를 **0줄 수정**하며 DIP를 재증명한다.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-13 | `DATABASE_URL`이 설정된 환경에서 예약 저장소는 Postgres를 사용한다. |
+| AC-14 | Postgres 저장소는 `save`/`findById`/`findActiveByShowtimeAndSeat`/`findActiveSeatsByShowtime`의 계약을 지킨다 (상태 재구성 포함). |
+| AC-15 | `DATABASE_URL`이 없으면 SQLite로 폴백하여 기존 동작을 그대로 유지한다. |
+| AC-16 | 저장소 교체 과정에서 domain/application/ports 코드가 변경되지 않는다. |
+
+**검증**
+
+- `postgres-reservation-repository.test.ts` (6개) — `describe.skipIf(!DATABASE_URL)` 패턴, 실제 postgres(로컬 docker / CI service container) 상에서 실행.
+- 로컬: api 39(33 + pg 6) + web 15, typecheck·lint 통과.
+- CI: `services.postgres` 컨테이너 + Test 스텝에 `DATABASE_URL` 주입으로 전부 초록.
+
+**학습 메모**
+
+- `node:sqlite`는 동기 생성자에서 마이그레이션 가능, `pg`는 async → **lazy `ensureTable()` 프로미스 패턴**으로 대체.
+- DB 백업 저장소의 진짜 레드-그린은 **실제 DB가 있는 환경에서만** 발생 (스킵된 테스트가 실행되는 순간).
+- PostgreSQL 18 공식 이미지는 볼륨 마운트 지점이 `/var/lib/postgresql`로 변경됨 (container log 안내).
