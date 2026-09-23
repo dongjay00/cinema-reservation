@@ -21,7 +21,11 @@ function layerNameOf(file: string): string {
 }
 
 function isTestFile(file: string): boolean {
-  return file.includes("__tests__") || file.endsWith(".test.ts") || file.endsWith(".test.tsx");
+  return (
+    file.includes("__tests__") ||
+    file.endsWith(".test.ts") ||
+    file.endsWith(".test.tsx")
+  );
 }
 
 function collectSourceFiles(dir: string): string[] {
@@ -54,8 +58,14 @@ describe("아키텍처 가드 — 의존성은 안쪽으로 향한다", () => {
 
       for (const { spec, relative: isRelative } of importsOf(file)) {
         if (!isRelative) {
-          if (sourceLayer === "domain" && !isTestFile(file) && !spec.startsWith("node:")) {
-            violations.push(`${relative(packageRoot, file)}: 도메인이 외부 의존 "${spec}"을 참조함`);
+          if (
+            sourceLayer === "domain" &&
+            !isTestFile(file) &&
+            !spec.startsWith("node:")
+          ) {
+            violations.push(
+              `${relative(packageRoot, file)}: 도메인이 외부 의존 "${spec}"을 참조함`,
+            );
           }
           continue;
         }

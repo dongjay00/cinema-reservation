@@ -56,7 +56,8 @@ describe("GetShowtimeSeatsUseCase", () => {
   };
 
   it("예약된 좌석은 available=false, 빈 좌석은 true로 표시한다", async () => {
-    const { showtime, reservationRepository, showtimeRepository } = makeScenario();
+    const { showtime, reservationRepository, showtimeRepository } =
+      makeScenario();
 
     reservationRepository.reserve(showtime.id, new Seat("A", 1));
 

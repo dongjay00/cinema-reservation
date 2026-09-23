@@ -14,7 +14,9 @@ class FakeReservationRepository implements CreateReservationRepository {
   ): Promise<Reservation | undefined> {
     return this.reservations.find(
       (r) =>
-        r.showtimeId === showtimeId && r.status === "CONFIRMED" && r.seat.equals(seat),
+        r.showtimeId === showtimeId &&
+        r.status === "CONFIRMED" &&
+        r.seat.equals(seat),
     );
   }
 
