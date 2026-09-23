@@ -8,6 +8,20 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: cinema
+          POSTGRES_PASSWORD: cinema
+          POSTGRES_DB: cinema
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cinema -d cinema"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v5
 
@@ -27,6 +41,8 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          DATABASE_URL: postgres://cinema:cinema@localhost:5432/cinema
 
       - name: Build (web)
         run: npm run build --workspace @cinema/web
