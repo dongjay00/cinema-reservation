@@ -2,7 +2,10 @@ import { Pool } from "pg";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
-import { MIGRATION, PostgresReservationRepository } from "../postgres-reservation-repository";
+import {
+  MIGRATION,
+  PostgresReservationRepository,
+} from "../postgres-reservation-repository";
 
 const databaseUrl = process.env.DATABASE_URL;
 

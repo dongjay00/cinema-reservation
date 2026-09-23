@@ -7,7 +7,9 @@ import { SqliteReservationRepository } from "./infrastructure/sqlite-reservation
 const databaseUrl = process.env.DATABASE_URL;
 
 const repository = databaseUrl
-  ? new PostgresReservationRepository(new Pool({ connectionString: databaseUrl }))
+  ? new PostgresReservationRepository(
+      new Pool({ connectionString: databaseUrl }),
+    )
   : new SqliteReservationRepository(new DatabaseSync("data.db"));
 
 const app = createApp(repository);
