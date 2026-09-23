@@ -145,3 +145,31 @@ Feature: 영화 좌석 예약
 - `node:sqlite`는 동기 생성자에서 마이그레이션 가능, `pg`는 async → **lazy `ensureTable()` 프로미스 패턴**으로 대체.
 - DB 백업 저장소의 진짜 레드-그린은 **실제 DB가 있는 환경에서만** 발생 (스킵된 테스트가 실행되는 순간).
 - PostgreSQL 18 공식 이미지는 볼륨 마운트 지점이 `/var/lib/postgresql`로 변경됨 (container log 안내).
+
+### M3: 아키텍처 가드 테스트 (2026-09-23)
+
+**목표** — "의존성은 안쪽으로 향한다"는 규칙을 테스트로 고정한다. NFR-01(도메인 순수성)의 기계적 강제.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-17 | `application` 레이어는 `infrastructure`를 import하지 않는다 (테스트 파일 포함). |
+| AC-18 | `domain` 레이어는 바깥 레이어(`application`/`infrastructure`)를 import하지 않는다. |
+| AC-19 | `domain`의 비테스트 파일은 서드파티·프레임워크(express·react·pg 등)를 import하지 않는다. 단 `node:*` 표준 내장은 예외. |
+| AC-20 | 가드 테스트는 `npm test`(CI 포함)로 자동 실행되어 위반 시 실패한다. |
+
+**검증**
+
+- `src/__tests__/architecture-guard.test.ts` — api/web 동일 파일. 소스 파일의 `from "..."`를 스캔해 레이어 순위(domain 0 < application 1 < infrastructure 2 < ui 3)를 위반하면 실패.
+- 검사 대상: api 40 / web 16 테스트 전부 통과, typecheck·lint 통과.
+
+**레드→그린 (가드 첫 실전)**
+
+- 첫 실행에서 **진짜 위반 4건** 적발: application 유스케이스 테스트 3개 파일이 `InMemory*Repository`(infrastructure)를 테스트 더블로 사용 중.
+- 수정: 좁은 포트(`CreateReservationRepository`/`CancelReservationRepository`/`ShowtimeSeatsQuery`)를 구현하는 **로컬 Fake**로 대체 → infrastructure import 제거. ISP 리팩터 수혜로 Fake 구현부가 더 작아짐.
+
+**학습 메모**
+
+- 웹 `tsconfig.app.json`의 `"types": ["vite/client"]`가 `@types/node`를 **목록 외 배제** → 가드 테스트의 `node:fs`가 typecheck 실패. `["vite/client", "node"]`로 수정.
+- 가드 테스트가 "규칙"과 "실천"의 격차를 즉시 좁힌다: 이번엔 application→infrastructure 의존이 그 대상이었음.

@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
-import { InMemoryReservationRepository } from "../../infrastructure/in-memory-reservation-repository";
 import { ReservationNotFoundError } from "../errors";
+import type { CancelReservationRepository } from "../ports/reservation-repository";
 import { CancelReservationUseCase } from "../use-cases/cancel-reservation";
+
+class FakeReservationRepository implements CancelReservationRepository {
+  private readonly reservations = new Map<string, Reservation>();
+
+  async findById(id: string): Promise<Reservation | undefined> {
+    return this.reservations.get(id);
+  }
+
+  async save(reservation: Reservation): Promise<void> {
+    this.reservations.set(reservation.id, reservation);
+  }
+}
 
 describe("CancelReservationUseCase", () => {
   const makeScenario = async () => {
-    const repo = new InMemoryReservationRepository();
+    const repo = new FakeReservationRepository();
     const reservation = new Reservation(
       "showtime-1",
       new Seat("A", 7),

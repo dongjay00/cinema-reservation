@@ -1,13 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
-import { InMemoryReservationRepository } from "../../infrastructure/in-memory-reservation-repository";
 import { DuplicateReservationError } from "../errors";
+import type { CreateReservationRepository } from "../ports/reservation-repository";
 import { CreateReservationUseCase } from "../use-cases/create-reservation";
+
+class FakeReservationRepository implements CreateReservationRepository {
+  readonly reservations: Reservation[] = [];
+
+  async findActiveByShowtimeAndSeat(
+    showtimeId: string,
+    seat: Seat,
+  ): Promise<Reservation | undefined> {
+    return this.reservations.find(
+      (r) =>
+        r.showtimeId === showtimeId && r.status === "CONFIRMED" && r.seat.equals(seat),
+    );
+  }
+
+  async save(reservation: Reservation): Promise<void> {
+    this.reservations.push(reservation);
+  }
+}
 
 describe("CreateReservationUseCase (FR-07 중복 예약 금지)", () => {
   const makeUseCase = () => {
-    const repo = new InMemoryReservationRepository();
+    const repo = new FakeReservationRepository();
     return { useCase: new CreateReservationUseCase(repo), repo };
   };
 
@@ -22,7 +40,7 @@ describe("CreateReservationUseCase (FR-07 중복 예약 금지)", () => {
 
     expect(reservation).toBeInstanceOf(Reservation);
     expect(reservation.status).toBe("CONFIRMED");
-    expect(await repo.findById(reservation.id)).toBe(reservation);
+    expect(repo.reservations).toContain(reservation);
   });
 
   it("같은 회차·같은 좌석에 활성 예약이 있으면 중복 예약을 거부한다", async () => {
