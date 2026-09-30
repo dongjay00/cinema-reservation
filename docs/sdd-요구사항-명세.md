@@ -300,6 +300,41 @@ Feature: 영화 좌석 예약
 - DIP 재증명: 조립 루트(index.ts)만 ~10줄 변경, 도메인·포트·유스케이스·라우트 0줄(AC-36). 소유권이 애플리케이션 쪽 포트에 있으니 저장소 구현체가 통째로 갈렸다.
 - 결과: api 59(sqlite 계약 8 + pg 계약 9) + web 19, typecheck·lint·빌드·가드 통과.
 
+### M8: 쇼타임 좌석 조회 캐싱 (2026-09-30)
+
+**목표** — 읽기 중핫 경로인 `GET /showtimes/:id/seats`(`ShowtimeSeatsQuery`)를 **TTL 기반 인메모리 캐시**로 보강한다. 캐시는 새 포트로 두고, 기존 좌석 조회 포트를 **데코레이터**로 감싼다 — 쓰기 경로·유스케이스·도메인은 건드리지 않는 확장(OCP).
+
+**설계**
+
+- 포트(`application/ports/cache.ts`): `Cache { get<T>(key): Promise<T|undefined>; set<T>(key, value, ttlMs): Promise<void> }` — 비동기로 두어 이후 Redis 등 원격 캐시로 교체 가능.
+- 구현(`infrastructure/in-memory-cache.ts`): `Map` + `expiresAt`, **주입 가능한 clock**(`now()`)으로 TTL 테스트를 결정적으로 만듦. 조회 시 만료 항목은 지연 삭제.
+- 데코레이터(`infrastructure/caching-showtime-seats-query.ts`): `CachingShowtimeSeatsQuery implements ShowtimeSeatsQuery` — `delegate` 위임 + 캐시 조회. 키 `showtime:{id}:seats`, 기본 TTL 5초(주입 가능). 캐시 적중 시 원본 쿼리 호출 생략.
+- 조립: `createApp`에 선택 인자 `seatsQuery: ShowtimeSeatsQuery = repository` 추가(기존 호출부 무변경), `index.ts`만 데코레이터를 감싸서 주입.
+- **무효화 정책**: TTL 만료에만 의존(쓰기 원자성·동시성은 M5가 담당). 예약 직후 최대 TTL만큼 좌석 목록이 늙을 수 있음 — 쓰기 발생 시 `delete(key)` 하는 **이벤트 기반 무효화**(M4의 도메인 이벤트 연결)는 스코프 밖 후속 과제로 기록.
+- 신규 테스트: `in-memory-cache.test.ts`(hit/miss/만료 3) + `caching-showtime-seats-query.test.ts`(첫 조회 위임·TTL 내 재조회 위임 1회·TTL 만료 후 재위임·showtime별 키 분리 — 3, spy 포트 사용).
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-37 | 첫 조회는 위임 포트에서 가져오고, TTL 내 동일 쇼타임 재조회는 캐시에서 반환한다(위임 호출 1회). |
+| AC-38 | TTL 만료 후 조회는 다시 위임 포트에서 가져온다. |
+| AC-39 | 쇼타임별로 캐시 키가 분리되어 서로 간섭하지 않는다. |
+| AC-40 | 도메인·기존 포트·유스케이스·라우트 0줄 수정 (데코레이터 + 포트 소유권 재증명). 캐시 도입이 TTL 지연이라는 명시적 트레이드오프를 수반한다는 것을 기록. |
+
+**검증**
+
+- api: 신규 캐시 단위 3 + 데코레이터 3 → 59 → 65. 전체 `npm test` + typecheck·lint·가드·빌드.
+
+**학습 메모**
+
+- 캐시도 "포트"다: 캐시 구현은 인프라, 계약은 애플리케이션이 소유 → Redis로 바꿔도 데코레이터·유스케이스는 무수정. 포트 소유권의 또 한 사례.
+- OCP를 데코레이터로: 기존 `ShowtimeSeatsQuery` 구현을 수정하지 않고 **같은 포트를 구현하는 새 클래스로 감싸** 읽기 경로만 보강. 쓰기·도메인은 0줄(AC-40).
+- 테스트 결정성: 캐시 만료를 기다리는 `setTimeout` 대신 **주입 가능한 clock(`now()`)을 생성자로** 받아 가짜 시계로 만료를 순간 이동 — 단위 테스트가 빨라지고 결정적.
+- 네트워크 왕복을 줄이는 곳은 좁은 읽기 포트(`ShowtimeSeatsQuery`)가 최적 — ISP로 분리된 포트 덕에 "읽기만 캐시"라는 의도를 정확히 표현.
+- TTL은 트레이드오프: 예약 직후 최대 5초간 좌석 목록이 늙을 수 있음(M5의 원자성 백스톱이 최종 정확성은 보장하므로 충돌 예약은 409). 쓰기 발생 시 `cache.delete(key)`하는 **이벤트 기반 무효화**(M4 도메인 이벤트 재사용)로 격차를 줄일 수 있음 — 후속 과제로 기록.
+- 결과: api 65(sqlite 계약 8 + pg 계약 9 포함) + web 19, typecheck·lint·빌드·가드 통과. "좌석 목록을 다섯 번 연속 조회하면 DB는 한 번만 친다".
+
 ### M6: 예약 목록 / 마이페이지 (2026-09-30)
 
 **목표** — 인증 없이 **이메일로 "내 예약"**을 조회하고 목록에서 취소까지 할 수 있게 한다. api는 조회 쿼리 포트, 웹은 프레젠테이션 쿼리(그리고 그 쿼리가 바라보는 DTO)를 추가.

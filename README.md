@@ -9,8 +9,8 @@ Clean Architecture · 객체지향 · SOLID를 **SDD → DDD → TDD** 스프린
 | 영역 | 기술 |
 |---|---|
 | 프론트엔드 | React 19 · Vite · TypeScript |
-| 백엔드 | Express 5 · Drizzle ORM — SQLite/better-sqlite3(기본), 선택적으로 Postgres 18 (raw SQL 저장소는 학습용 레거시로 유지) |
-| 테스트 | Vitest + Supertest (api 59, web 19) + 아키텍처 가드 |
+| 백엔드 | Express 5 · Drizzle ORM — SQLite/better-sqlite3(기본), 선택적으로 Postgres 18 (raw SQL 저장소는 학습용 레거시로 유지) · TTL 인메모리 캐시 |
+| 테스트 | Vitest + Supertest (api 65, web 19) + 아키텍처 가드 |
 | 린트 · 포맷 | Biome (루트 단일 설정) |
 | CI | GitHub Actions (lint · typecheck · test · build + postgres service) |
 
@@ -69,7 +69,7 @@ DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 | 명령 | 동작 |
 |---|---|
 | `npm run dev:api` / `dev:web` | 개발 서버 (tsx watch / vite) |
-| `npm test` | api + web 전체 테스트 (api 59 · web 19 — DB 미지정 시 pg 10건 제외) |
+| `npm test` | api + web 전체 테스트 (api 65 · web 19 — DB 미지정 시 pg 10건 제외) |
 | `npm run test:api` / `test:web` | 각 워크스페이스 테스트 |
 | `npm run typecheck` | 전 워크스페이스 타입 검사 |
 | `npm run lint` | biome 검사 (포맷 + 린트) |
@@ -93,5 +93,5 @@ DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 | 5 | 동시성 (동시 예약 레이스) | ✅ |
 | 6 | 예약 목록 / 마이페이지 | ✅ |
 | 7 | ORM 교체 (raw SQL → Drizzle) | ✅ |
-| 8 | 캐싱 | |
+| 8 | 캐싱 (좌석 조회 TTL 데코레이터) | ✅ |
 | 9 | MSA 기초 | |

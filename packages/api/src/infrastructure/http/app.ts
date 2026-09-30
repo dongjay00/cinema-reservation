@@ -2,7 +2,10 @@ import { ping } from "@cinema/shared";
 import cors from "cors";
 import express from "express";
 import type { EventPublisher } from "../../application/ports/event-publisher";
-import type { ReservationRepository } from "../../application/ports/reservation-repository";
+import type {
+  ReservationRepository,
+  ShowtimeSeatsQuery,
+} from "../../application/ports/reservation-repository";
 import { CancelReservationUseCase } from "../../application/use-cases/cancel-reservation";
 import { CreateReservationUseCase } from "../../application/use-cases/create-reservation";
 import { GetShowtimeSeatsUseCase } from "../../application/use-cases/get-showtime-seats";
@@ -16,6 +19,7 @@ import { createShowtimeRouter } from "./showtime-routes";
 export function createApp(
   repository: ReservationRepository,
   publisher: EventPublisher = new SilentEventPublisher(),
+  seatsQuery: ShowtimeSeatsQuery = repository,
 ) {
   const createReservationUseCase = new CreateReservationUseCase(
     repository,
@@ -31,7 +35,7 @@ export function createApp(
   const showtimeRepository = new InMemoryShowtimeRepository();
   const listShowtimesUseCase = new ListShowtimesUseCase(showtimeRepository);
   const getShowtimeSeatsUseCase = new GetShowtimeSeatsUseCase(
-    repository,
+    seatsQuery,
     showtimeRepository,
   );
 
