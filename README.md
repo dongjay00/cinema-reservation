@@ -10,7 +10,7 @@ Clean Architecture · 객체지향 · SOLID를 **SDD → DDD → TDD** 스프린
 |---|---|
 | 프론트엔드 | React 19 · Vite · TypeScript |
 | 백엔드 | Express 5 · SQLite(기본) — 선택적으로 Postgres 18 |
-| 테스트 | Vitest + Supertest (api 40, web 16) + 아키텍처 가드 |
+| 테스트 | Vitest + Supertest (api 48, web 16) + 아키텍처 가드 |
 | 린트 · 포맷 | Biome (루트 단일 설정) |
 | CI | GitHub Actions (lint · typecheck · test · build + postgres service) |
 
@@ -89,7 +89,8 @@ DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 | 1 | CI (GitHub Actions) | ✅ |
 | 2 | Postgres 저장소 (raw pg, env 교체) | ✅ |
 | 3 | 아키텍처 가드 테스트 | ✅ |
-| 4 | 도메인 이벤트 + 알림 포트 |
+| 4 | 도메인 이벤트 + 알림 포트 | ✅ |
+| 5 | 동시성 (동시 예약 레이스) |
 | 5 | 동시성/이중 예약 race |
 | 6 | 예약 목록/마이페이지 |
 | 7 | ORM 교체 (raw pg → Drizzle/Prisma) |

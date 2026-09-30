@@ -1,6 +1,7 @@
 import { Reservation } from "../../domain/reservation";
 import type { Seat } from "../../domain/seat";
 import { DuplicateReservationError } from "../errors";
+import type { EventPublisher } from "../ports/event-publisher";
 import type { CreateReservationRepository } from "../ports/reservation-repository";
 
 export interface CreateReservationInput {
@@ -10,7 +11,10 @@ export interface CreateReservationInput {
 }
 
 export class CreateReservationUseCase {
-  constructor(private readonly repository: CreateReservationRepository) {}
+  constructor(
+    private readonly repository: CreateReservationRepository,
+    private readonly publisher: EventPublisher,
+  ) {}
 
   async execute(input: CreateReservationInput): Promise<Reservation> {
     const existing = await this.repository.findActiveByShowtimeAndSeat(
@@ -24,12 +28,13 @@ export class CreateReservationUseCase {
       );
     }
 
-    const reservation = new Reservation(
+    const reservation = Reservation.create(
       input.showtimeId,
       input.seat,
       input.customerEmail,
     );
     await this.repository.save(reservation);
+    await this.publisher.publish(reservation.takeRecordedEvents());
     return reservation;
   }
 }

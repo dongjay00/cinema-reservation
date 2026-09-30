@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { type DomainEvent, ReservationCancelled } from "../../domain/events";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
 import { ReservationNotFoundError } from "../errors";
+import type { EventPublisher } from "../ports/event-publisher";
 import type { CancelReservationRepository } from "../ports/reservation-repository";
 import { CancelReservationUseCase } from "../use-cases/cancel-reservation";
 
@@ -17,16 +19,30 @@ class FakeReservationRepository implements CancelReservationRepository {
   }
 }
 
+class FakePublisher implements EventPublisher {
+  readonly published: DomainEvent[][] = [];
+
+  async publish(events: readonly DomainEvent[]): Promise<void> {
+    this.published.push([...events]);
+  }
+}
+
 describe("CancelReservationUseCase", () => {
   const makeScenario = async () => {
     const repo = new FakeReservationRepository();
+    const publisher = new FakePublisher();
     const reservation = new Reservation(
       "showtime-1",
       new Seat("A", 7),
       "hoon@example.com",
     );
     await repo.save(reservation);
-    return { useCase: new CancelReservationUseCase(repo), repo, reservation };
+    return {
+      useCase: new CancelReservationUseCase(repo, publisher),
+      repo,
+      publisher,
+      reservation,
+    };
   };
 
   it("존재하는 예약을 취소하면 상태가 CANCELLED가 된다", async () => {
@@ -50,5 +66,15 @@ describe("CancelReservationUseCase", () => {
     await useCase.execute(reservation.id);
 
     await expect(useCase.execute(reservation.id)).rejects.toThrow();
+  });
+
+  it("취소 후 ReservationCancelled 이벤트를 발행한다 (AC-24)", async () => {
+    const { useCase, reservation, publisher } = await makeScenario();
+
+    await useCase.execute(reservation.id);
+
+    expect(publisher.published).toHaveLength(1);
+    expect(publisher.published[0]).toHaveLength(1);
+    expect(publisher.published[0][0]).toBeInstanceOf(ReservationCancelled);
   });
 });

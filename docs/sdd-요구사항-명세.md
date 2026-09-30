@@ -173,3 +173,44 @@ Feature: 영화 좌석 예약
 
 - 웹 `tsconfig.app.json`의 `"types": ["vite/client"]`가 `@types/node`를 **목록 외 배제** → 가드 테스트의 `node:fs`가 typecheck 실패. `["vite/client", "node"]`로 수정.
 - 가드 테스트가 "규칙"과 "실천"의 격차를 즉시 좁힌다: 이번엔 application→infrastructure 의존이 그 대상이었음.
+
+### M4: 도메인 이벤트 + 알림 포트 (2026-09-23)
+
+**목표** — 예약 생성/취소라는 비즈니스 사실(사실, fact)을 **도메인 이벤트**로 표현하고, 이를 "알림" 밖으로 내보내는 **포트(포트-아웃)**를 둔다. 알림의 실사용 메커니즘(이메일·푸시 등)은 infrastructure 어댑터의 책임이며, 유스케이스는 교체를 모른다.
+
+**설계**
+
+- `domain/events.ts` — `DomainEvent` 인터페이스 + `ReservationCreated`/`ReservationCancelled`.
+- `Reservation`이 행위 시점에 이벤트를 **기록**한다: `Reservation.create(...)` 정적 팩토리(등록 시 생성 이벤트), `cancel()`(취소 이벤트). `takeRecordedEvents()`가 기록을 꺼낸 뒤 비운다.
+- **재구성 경로는 이벤트를 만들지 않는다**: 저장소가 DB에서 `new Reservation(id,...)`로 되살릴 때는 이벤트가 기록되지 않아야 한다(중복 발행 방지).
+- `application/ports/event-publisher.ts` — 포트-아웃 `EventPublisher.publish(events)`.
+- 유스케이스는 저장 성공 후 `takeRecordedEvents()`의 결과를 발행한다.
+- `infrastructure/notification-event-publisher.ts` — 어댑터. `ReservationCreated`/`ReservationCancelled`를 받아 console로 "이메일 발송" 데모 로그를 남긴다. 실제 SMTP 연동으로 갈아끼워도 application/domain은 무변경.
+- 조립 루트(`index.ts`)에서 어댑터를 유스케이스에 주입.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-21 | `Reservation.create()`는 생성 직후 `ReservationCreated` 이벤트를 기록한다. |
+| AC-22 | `Reservation.cancel()`은 `ReservationCancelled` 이벤트를 기록한다. |
+| AC-23 | `takeRecordedEvents()`는 기록을 한 번에 돌려주고 저장소를 비운다. |
+| AC-24 | 생성/취소 유스케이스는 저장 성공 시 기록된 이벤트를 `EventPublisher`로 발행한다. |
+| AC-25 | 저장소가 DB에서 예약을 재구성할 때 이벤트가 기록되지 않는다 (재발행 없음). |
+| AC-26 | 알림 게재 방식(console 데모)을 바꿔도 domain/application 코드는 변경되지 않는다. |
+
+**검증**
+
+- domain 이벤트 테스트 + 유스케이스 이벤트 발행 테스트(로컬 FakePublisher) + 어댑터 테스트(console 스파이).
+- 전체: api 40 + 신규, web 16, typecheck·lint·가드 통과.
+
+**검증 결과**
+
+- domain 이벤트 4개 + AC-24 발행 2개 + 어댑터 2개 신규 → api 48(42+pg 6) / web 16, typecheck·lint·가드 전부 통과.
+
+**학습 메모**
+
+- 이벤트는 **도메인 행위의 사실(fact)**에서만 기록한다. `Reservation.create()` 정적 팩토리는 생성 이벤트를, `cancel()`은 취소 이벤트를 기록. **재구성/재생성 경로(`new Reservation`)는 이벤트를 만들지 않는다** → DB 로드 후 중복 발행 방지.
+- 이벤트는 저장 성공 후 유스케이스가 `takeRecordedEvents()`로 꺼내 발행. 유스케이스는 "누구에게 어떻게 알릴지"를 모르고 사실만 내보낸다 — 실제 이메일 연동(SMTP 등)으로 어댑터를 갈아끼워도 domain/application 무변경.
+- `createApp` 기본값을 `SilentEventPublisher`로 두어 기존 supertest 호출 3곳은 건드리지 않았고, 조립 루트(index.ts)만 데모 어댑터를 명시 주입.
+- AC-24 발행 2건(생성/취소)은 진짜 레드→그린. AC-26 어댑터 검증 테스트는 구현이 이미 타이핑된 뒤라 "구현 후 검증"으로 추가 (red-first 예외 1건, 고지됨).
