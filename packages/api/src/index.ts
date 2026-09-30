@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import Redis from "ioredis";
 import { Pool } from "pg";
 import { CachingShowtimeSeatsQuery } from "./infrastructure/caching-showtime-seats-query";
 import { DrizzlePostgresReservationRepository } from "./infrastructure/drizzle-postgres-reservation-repository";
@@ -6,8 +7,13 @@ import { DrizzleSqliteReservationRepository } from "./infrastructure/drizzle-sql
 import { createApp } from "./infrastructure/http/app";
 import { InMemoryCache } from "./infrastructure/in-memory-cache";
 import { NotificationEventPublisher } from "./infrastructure/notification-event-publisher";
+import { RedisCache } from "./infrastructure/redis-cache";
 
 const databaseUrl = process.env.DATABASE_URL;
+const redisUrl = process.env.REDIS_URL;
+const cache = redisUrl
+  ? new RedisCache(new Redis(redisUrl))
+  : new InMemoryCache();
 
 const repository = databaseUrl
   ? new DrizzlePostgresReservationRepository(
@@ -19,7 +25,7 @@ const publisher = new NotificationEventPublisher();
 const app = createApp(
   repository,
   publisher,
-  new CachingShowtimeSeatsQuery(repository, new InMemoryCache()),
+  new CachingShowtimeSeatsQuery(repository, cache),
 );
 const PORT = 4000;
 app.listen(PORT, () => console.log(`api on http://localhost:${PORT}`));

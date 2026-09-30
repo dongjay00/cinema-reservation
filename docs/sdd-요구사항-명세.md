@@ -310,6 +310,7 @@ Feature: 영화 좌석 예약
 - 구현(`infrastructure/in-memory-cache.ts`): `Map` + `expiresAt`, **주입 가능한 clock**(`now()`)으로 TTL 테스트를 결정적으로 만듦. 조회 시 만료 항목은 지연 삭제.
 - 데코레이터(`infrastructure/caching-showtime-seats-query.ts`): `CachingShowtimeSeatsQuery implements ShowtimeSeatsQuery` — `delegate` 위임 + 캐시 조회. 키 `showtime:{id}:seats`, 기본 TTL 5초(주입 가능). 캐시 적중 시 원본 쿼리 호출 생략.
 - 조립: `createApp`에 선택 인자 `seatsQuery: ShowtimeSeatsQuery = repository` 추가(기존 호출부 무변경), `index.ts`만 데코레이터를 감싸서 주입.
+- **Redis 어댑터(M8.5)**: `Cache` 포트 구현으로 `RedisCache`(ioredis) 추가 — `JSON.stringify/parse` + TTL은 ms 단위 `PX`. 조립 루트가 `REDIS_URL` 제공 시 Redis, 아니면 InMemory 선택. 원격 캐시라 도메인 객체를 담을 수 없어 데코레이터가 **JSON 안전한 프로젝션(`{row, number}[]`)을 캐시하고, 힛 시 `Seat`으로 재구성**한다.
 - **무효화 정책**: TTL 만료에만 의존(쓰기 원자성·동시성은 M5가 담당). 예약 직후 최대 TTL만큼 좌석 목록이 늙을 수 있음 — 쓰기 발생 시 `delete(key)` 하는 **이벤트 기반 무효화**(M4의 도메인 이벤트 연결)는 스코프 밖 후속 과제로 기록.
 - 신규 테스트: `in-memory-cache.test.ts`(hit/miss/만료 3) + `caching-showtime-seats-query.test.ts`(첫 조회 위임·TTL 내 재조회 위임 1회·TTL 만료 후 재위임·showtime별 키 분리 — 3, spy 포트 사용).
 
@@ -321,10 +322,13 @@ Feature: 영화 좌석 예약
 | AC-38 | TTL 만료 후 조회는 다시 위임 포트에서 가져온다. |
 | AC-39 | 쇼타임별로 캐시 키가 분리되어 서로 간섭하지 않는다. |
 | AC-40 | 도메인·기존 포트·유스케이스·라우트 0줄 수정 (데코레이터 + 포트 소유권 재증명). 캐시 도입이 TTL 지연이라는 명시적 트레이드오프를 수반한다는 것을 기록. |
+| AC-41 | `REDIS_URL` 제공 시 캐시는 Redis 어댑터로 동작한다 (JSON 왕복 + PX ms TTL). |
+| AC-42 | 캐시에는 JSON 안전한 프로젝션만 담고, 힛 시 도메인 객체(`Seat`)로 재구성한다. |
+| AC-43 | 유스케이스·포트·라우트 0줄 수정으로 캐시 구현이 스왑된다 (InMemory ⇄ Redis). |
 
 **검증**
 
-- api: 신규 캐시 단위 3 + 데코레이터 3 → 59 → 65. 전체 `npm test` + typecheck·lint·가드·빌드.
+- api: 신규 캐시 단위 3 + 데코레이터 3 → 59 → 65, Redis 어댑터 4(M8.5, `REDIS_URL` 제공 시) → 69. 전체 `npm test` + typecheck·lint·가드·빌드.
 
 **학습 메모**
 
@@ -334,6 +338,8 @@ Feature: 영화 좌석 예약
 - 네트워크 왕복을 줄이는 곳은 좁은 읽기 포트(`ShowtimeSeatsQuery`)가 최적 — ISP로 분리된 포트 덕에 "읽기만 캐시"라는 의도를 정확히 표현.
 - TTL은 트레이드오프: 예약 직후 최대 5초간 좌석 목록이 늙을 수 있음(M5의 원자성 백스톱이 최종 정확성은 보장하므로 충돌 예약은 409). 쓰기 발생 시 `cache.delete(key)`하는 **이벤트 기반 무효화**(M4 도메인 이벤트 재사용)로 격차를 줄일 수 있음 — 후속 과제로 기록.
 - 결과: api 65(sqlite 계약 8 + pg 계약 9 포함) + web 19, typecheck·lint·빌드·가드 통과. "좌석 목록을 다섯 번 연속 조회하면 DB는 한 번만 친다".
+- Redis 스왑(M8.5): 캐시 계약 그대로, 구현만 ioredis로 교체 — 포트 소유권의 재현. 다만 **원격 캐시는 "경계에선 전송 가능한 형태로 변환"을 강제**한다: `Seat` 클래스 인스턴스는 직렬화되면 프로토타입/`equals()`/`label` getter를 잃으므로, 데코레이터가 프로젝션(`{row,number}[]`)만 캐시하고 힛 시 재구성. 캐시 계약은 "JSON 안전 데이터"라는 암묵적 규칙이 생겼고 InMemory·Redis 모두 준수. TTL은 `EX`(초 단위) 대신 `PX`(ms)로 포트의 ms 규약을 유지.
+- 결과: api 69 + web 19(Redis 테스트는 로컬/CI 모두 `REDIS_URL` 있어서 실제 실행, 없으면 skip).
 
 ### M6: 예약 목록 / 마이페이지 (2026-09-30)
 
