@@ -214,3 +214,40 @@ Feature: 영화 좌석 예약
 - 이벤트는 저장 성공 후 유스케이스가 `takeRecordedEvents()`로 꺼내 발행. 유스케이스는 "누구에게 어떻게 알릴지"를 모르고 사실만 내보낸다 — 실제 이메일 연동(SMTP 등)으로 어댑터를 갈아끼워도 domain/application 무변경.
 - `createApp` 기본값을 `SilentEventPublisher`로 두어 기존 supertest 호출 3곳은 건드리지 않았고, 조립 루트(index.ts)만 데모 어댑터를 명시 주입.
 - AC-24 발행 2건(생성/취소)은 진짜 레드→그린. AC-26 어댑터 검증 테스트는 구현이 이미 타이핑된 뒤라 "구현 후 검증"으로 추가 (red-first 예외 1건, 고지됨).
+
+### M5: 동시성 — 동시 예약 레이스 (2026-09-30)
+
+**문제** — `CreateReservationUseCase`의 "확인 후 저장"(`findActiveByShowtimeAndSeat` → `save`)은 **원자적이지 않다**. 두 요청이 검사를 통과하는 사이에 서로의 INSERT를 보지 못하면 같은 좌석에 CONFIRMED가 둘 생긴다. PG는 async Pool이라 실제로 인터리빙된다.
+
+**설계** — 방어는 두 겹.
+
+1. 애플리케이션 사전 검사(기존): 친절한 에러 + 빠른 응답. 하지만 경쟁 조건을 못 막는다.
+2. **DB 백스톱(신규)**: 부분 유니크 인덱스 `(showtime_id, seat_row, seat_number) WHERE status = 'CONFIRMED'`를 SQLite·Postgres 양쪽에 추가. 두 번째 CONFIRMED INSERT가 인덱스에 걸려 실패하고, 저장소는 그 위반을 `DuplicateReservationError`로 번역한다 → 유스케이스·라우트(409)는 무변경.
+
+- 취소된 행은 인덱스에 포함되지 않으므로 같은 좌석의 재예약은 여전히 허용된다.
+- "실패 유발 원인"은 DB마다 다르므로 각 저장소가 자기 DB의 위반을 감지한다 (sqlite `errcode`/메시지, pg `23505`).
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-27 | 같은 회차·좌석에 CONFIRMED가 이미 있으면 `save`는 `DuplicateReservationError`를 던진다 (경쟁 조건에서도). |
+| AC-28 | CANCELLED로 풀린 좌석은 다시 CONFIRMED로 저장할 수 있다. |
+| AC-29 | 동시에 N건의 같은 좌석 예약 저장 → 정확히 하나만 성공한다 (실 DB에서 검증). |
+
+**검증**
+
+- SQLite(메모리) 계약 2건 추가 + PG(`skipIf(!DATABASE_URL)`) 계약 2건 + **동시성 통합 테스트 1건**(`Promise.allSettled`, 실 DB 전용).
+- 사전 검사 유스케이스 테스트/가드/HTTP 409 매핑은 무변경 재사용.
+
+**검증 결과**
+
+- 로컬(무 DB): sqlite 계약 8개 포함 44 통과 + pg 9개 스킵. 실 DB(pg): 전부 53 통과.
+- AC-29 동시성 검증: 5건 `Promise.allSettled` → fulfilled 정확히 1, POST검증 조회로 CONFIRMED 1행 확인.
+
+**학습 메모**
+
+- "확인 후 저장"의 비원자성을 **DB 제약으로 백스톱**: 부분 유니크 인덱스 `(...) WHERE status='CONFIRMED'`가 SQLite·Postgres 공통 문법.
+- `ON CONFLICT (id)` UPSERT는 **PK 충돌만** 흡수한다. 같은 좌석의 새 id INSERT는 부분 인덱스에 걸려 그대로 예외로 올라오고, 저장소가 이를 애플리케이션 에러(`DuplicateReservationError`)로 번역 → HTTP 409 매핑 재사용(유스케이스·라우트 0줄 수정).
+- 위반 감지 코드는 DB마다 다름: PG `SQLSTATE 23505`, SQLite `errcode 2067`(=`SQLITE_CONSTRAINT_UNIQUE`). 저장소가 각자 자기 DB의 위반을 안다.
+- 애플리케이션 사전 검사는 그대로 두는 이유: (1) 친절한 에러·빠른 응답, (2) 인덱스는 레이스 윈도우의 최종 방어. 성능·UX와 정합성은 별개 겹.

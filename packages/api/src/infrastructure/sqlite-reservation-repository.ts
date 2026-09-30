@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { DuplicateReservationError } from "../application/errors";
 import type { ReservationRepository } from "../application/ports/reservation-repository";
 import { Reservation } from "../domain/reservation";
 import { Seat } from "../domain/seat";
@@ -12,6 +13,9 @@ CREATE TABLE IF NOT EXISTS reservations (
   customer_email TEXT NOT NULL,
   status TEXT NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reservations_active_seat
+  ON reservations(showtime_id, seat_row, seat_number)
+  WHERE status = 'CONFIRMED';
 `;
 
 type ReservationRow = {
@@ -32,20 +36,29 @@ export class SqliteReservationRepository implements ReservationRepository {
   }
 
   async save(reservation: Reservation): Promise<void> {
-    this.db
-      .prepare(
-        `INSERT INTO reservations (id, showtime_id, seat_row, seat_number, customer_email, status)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET status = excluded.status`,
-      )
-      .run(
-        reservation.id,
-        reservation.showtimeId,
-        reservation.seat.row,
-        reservation.seat.number,
-        reservation.customerEmail,
-        reservation.status,
-      );
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO reservations (id, showtime_id, seat_row, seat_number, customer_email, status)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET status = excluded.status`,
+        )
+        .run(
+          reservation.id,
+          reservation.showtimeId,
+          reservation.seat.row,
+          reservation.seat.number,
+          reservation.customerEmail,
+          reservation.status,
+        );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new DuplicateReservationError(
+          `Seat ${reservation.seat.label} is already reserved for showtime ${reservation.showtimeId}`,
+        );
+      }
+      throw error;
+    }
   }
 
   async findById(id: string): Promise<Reservation | undefined> {
@@ -88,5 +101,13 @@ function toReservation(row: ReservationRow): Reservation {
     row.customer_email,
     row.id,
     row.status,
+  );
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    (error as { errcode?: number }).errcode === 2067 ||
+    error.message.includes("UNIQUE constraint failed")
   );
 }

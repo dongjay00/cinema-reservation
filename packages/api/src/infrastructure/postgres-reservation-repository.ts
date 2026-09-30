@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { DuplicateReservationError } from "../application/errors";
 import type { ReservationRepository } from "../application/ports/reservation-repository";
 import { Reservation } from "../domain/reservation";
 import { Seat } from "../domain/seat";
@@ -12,6 +13,9 @@ CREATE TABLE IF NOT EXISTS reservations (
   customer_email TEXT NOT NULL,
   status TEXT NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_reservations_active_seat
+  ON reservations(showtime_id, seat_row, seat_number)
+  WHERE status = 'CONFIRMED';
 `;
 
 export { MIGRATION };
@@ -37,19 +41,28 @@ export class PostgresReservationRepository implements ReservationRepository {
 
   async save(reservation: Reservation): Promise<void> {
     await this.ensureTable();
-    await this.pool.query(
-      `INSERT INTO reservations (id, showtime_id, seat_row, seat_number, customer_email, status)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status`,
-      [
-        reservation.id,
-        reservation.showtimeId,
-        reservation.seat.row,
-        reservation.seat.number,
-        reservation.customerEmail,
-        reservation.status,
-      ],
-    );
+    try {
+      await this.pool.query(
+        `INSERT INTO reservations (id, showtime_id, seat_row, seat_number, customer_email, status)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status`,
+        [
+          reservation.id,
+          reservation.showtimeId,
+          reservation.seat.row,
+          reservation.seat.number,
+          reservation.customerEmail,
+          reservation.status,
+        ],
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new DuplicateReservationError(
+          `Seat ${reservation.seat.label} is already reserved for showtime ${reservation.showtimeId}`,
+        );
+      }
+      throw error;
+    }
   }
 
   async findById(id: string): Promise<Reservation | undefined> {
@@ -92,4 +105,8 @@ function toReservation(row: ReservationRow): Reservation {
     row.id,
     row.status,
   );
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: string })?.code === "23505";
 }
