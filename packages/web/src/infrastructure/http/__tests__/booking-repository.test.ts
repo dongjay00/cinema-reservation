@@ -95,9 +95,9 @@ describe("HttpReservationRepository (HTTP 어댑터)", () => {
     ];
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify(body), { status: 200 }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
     );
 
     const repo = new HttpReservationRepository("http://localhost:4000");

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { DuplicateSeatError } from "./application/errors";
 import type { SeatAvailability } from "./application/ports/showtime-repository";
 import { CancelReservationUseCase } from "./application/use-cases/cancel-reservation";
+import { ListReservationsUseCase } from "./application/use-cases/list-reservations";
 import { LoadShowtimeSeatsUseCase } from "./application/use-cases/load-showtime-seats";
 import { LoadShowtimesUseCase } from "./application/use-cases/load-showtimes";
 import { ReserveSeatUseCase } from "./application/use-cases/reserve-seat";
 import { BookingForm } from "./components/BookingForm";
+import { MyReservations } from "./components/MyReservations";
 import { SeatPicker } from "./components/SeatPicker";
 import { ShowtimeSelector } from "./components/ShowtimeSelector";
 import { BookingDraft } from "./domain/booking-draft";
@@ -14,8 +16,6 @@ import type { Seat } from "./domain/seat";
 import type { Showtime } from "./domain/showtime";
 import { HttpReservationRepository } from "./infrastructure/http/booking-repository";
 import { HttpShowtimeRepository } from "./infrastructure/http/showtime-repository";
-import { ListReservationsUseCase } from "./application/use-cases/list-reservations";
-import { MyReservations } from "./components/MyReservations";
 
 const BASE_URL = "http://localhost:4000";
 

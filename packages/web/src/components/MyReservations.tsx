@@ -64,8 +64,7 @@ export function MyReservations({ load, onCancel }: MyReservationsProps) {
         <ul>
           {reservations.map((reservation) => (
             <li key={reservation.id}>
-              {reservation.seat.label} / {reservation.id} /{" "}
-              {reservation.status}
+              {reservation.seat.label} / {reservation.id} / {reservation.status}
               {reservation.status === "CONFIRMED" && (
                 <button
                   type="button"
