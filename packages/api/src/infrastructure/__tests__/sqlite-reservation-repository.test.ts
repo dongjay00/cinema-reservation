@@ -1,12 +1,12 @@
-import { DatabaseSync } from "node:sqlite";
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { DuplicateReservationError } from "../../application/errors";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
-import { SqliteReservationRepository } from "../sqlite-reservation-repository";
+import { DrizzleSqliteReservationRepository } from "../drizzle-sqlite-reservation-repository";
 
 const makeRepo = () =>
-  new SqliteReservationRepository(new DatabaseSync(":memory:"));
+  new DrizzleSqliteReservationRepository(new Database(":memory:"));
 
 describe("SqliteReservationRepository", () => {
   it("save 후 findById로 (상태 포함) 재구성한다", async () => {

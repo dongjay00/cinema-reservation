@@ -1,17 +1,17 @@
-import { DatabaseSync } from "node:sqlite";
+import Database from "better-sqlite3";
 import { Pool } from "pg";
+import { DrizzlePostgresReservationRepository } from "./infrastructure/drizzle-postgres-reservation-repository";
+import { DrizzleSqliteReservationRepository } from "./infrastructure/drizzle-sqlite-reservation-repository";
 import { createApp } from "./infrastructure/http/app";
 import { NotificationEventPublisher } from "./infrastructure/notification-event-publisher";
-import { PostgresReservationRepository } from "./infrastructure/postgres-reservation-repository";
-import { SqliteReservationRepository } from "./infrastructure/sqlite-reservation-repository";
 
 const databaseUrl = process.env.DATABASE_URL;
 
 const repository = databaseUrl
-  ? new PostgresReservationRepository(
+  ? new DrizzlePostgresReservationRepository(
       new Pool({ connectionString: databaseUrl }),
     )
-  : new SqliteReservationRepository(new DatabaseSync("data.db"));
+  : new DrizzleSqliteReservationRepository(new Database("data.db"));
 
 const publisher = new NotificationEventPublisher();
 const app = createApp(repository, publisher);

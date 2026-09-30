@@ -4,20 +4,20 @@ import { DuplicateReservationError } from "../../application/errors";
 import { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
 import {
+  DrizzlePostgresReservationRepository,
   MIGRATION,
-  PostgresReservationRepository,
-} from "../postgres-reservation-repository";
+} from "../drizzle-postgres-reservation-repository";
 
 const databaseUrl = process.env.DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("PostgresReservationRepository", () => {
   let pool: Pool;
-  let repo: PostgresReservationRepository;
+  let repo: DrizzlePostgresReservationRepository;
 
   beforeEach(async () => {
     if (!pool) {
       pool = new Pool({ connectionString: databaseUrl });
-      repo = new PostgresReservationRepository(pool);
+      repo = new DrizzlePostgresReservationRepository(pool);
     }
     await pool.query(MIGRATION);
     await pool.query("DELETE FROM reservations");

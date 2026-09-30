@@ -267,6 +267,39 @@ Feature: 영화 좌석 예약
 - 실수 2건 인정: 테스트의 import 경로(`./list-reservations` → `../use-cases/list-reservations`), 소스와 무관하게 describe를 잘못된 블록에 중첩. 구조는 작게 자주 확인하는 것이 낫다.
 - UI 컴포넌트 렌더 테스트는 이 프로젝트에 React Testing Library가 없어 스코프에서 제외(AC-33의 데이터 흐름은 유스케이스·어댑터 테스트가 증명, 렌더는 typecheck·빌드 + 수동 확인).
 
+### M7: ORM 교체 — raw SQL → Drizzle (2026-09-30)
+
+**목표** — 저장소의 데이터 접근 계층을 `pg`·`node:sqlite` **raw SQL에서 Drizzle ORM으로 교체**한다. 포트·도메인·유스케이스는 그대로 두고, 같은 계약 테스트(AC-27~30)가 신규 구현을 그대로 검증하는 "교체의 안전망"을 실습한다.
+
+**설계**
+
+- 의존성: `drizzle-orm` + `drizzle-kit`(dev) + `better-sqlite3` + `@types/better-sqlite3`(dev). pg는 `drizzle-orm/node-postgres` 드라이버의 피어로 유지.
+- `node:sqlite`(`DatabaseSync`)는 **Drizzle 공식 드라이버가 없어** 기본 SQLite 드라이버를 `better-sqlite3`(동기·메모리 지원)로 전환.
+- `infrastructure/schema.ts`: Drizzle 스키마 2종(`sqliteTable`/`pgTable`, 컬럼 동일). **테이블/부분 유니크 인덱스는 기존 DDL 부트스트랩 재사용**(`CREATE TABLE IF NOT EXISTS` + `WHERE status='CONFIRMED'` 인덱스) — 원자성 백스톱(M5)이 ORM 위에서도 DB 레벨로 유지됨을 재증명.
+- 신규 저장소 `DrizzleSqliteReservationRepository` / `DrizzlePostgresReservationRepository`: 기존 6계약(`save` UPSERT·`findById`·`findActiveByShowtimeAndSeat`·`findActiveSeatsByShowtime`·`findByCustomerEmail`)을 Drizzle 쿼리로 재구현. 유니크 위반(SQLite `SQLITE_CONSTRAINT_UNIQUE`/PG `23505`)을 `DuplicateReservationError`로 번역.
+- 기존 raw 저장소 2개는 **학습용 레거시로 유지**(미사용·미테스트 — README에 명시). 계약 테스트 2파일은 **셋업만 신규 저장소로 교체**(본문·예상 0자 변경) — 즉 교체가 테스트 수를 늘리지 않고 기존 증명을 이어받는다.
+- 조립 루트(index.ts)만 드라이버·클라이언트 생성 주입.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-34 | Drizzle 저장소가 기존 계약(조회·저장·레이스 백스톱·이메일 조회)을 그대로 통과한다. (실질: M5·M6 계약 테스트 스위트 무수정 통과) |
+| AC-35 | 부분 유니크 인덱스 백스톱이 ORM 위에서도 DB 레벨로 동작한다 (AC-27/28/29 재통과). |
+| AC-36 | 도메인·포트·유스케이스·라우트가 **0줄 수정**으로 교체된다 (DIP 재증명). |
+
+**검증** — 전체 `npm test`(sqlite 계약 8 + pg 계약 9 포함) + typecheck·lint·가드·빌드.
+
+**학습 메모**
+
+- 드라이버는 ORM이 지원하는 것으로 골라야 한다: Drizzle은 `node:sqlite` 공식 드라이버를 주지 않아 기본 SQLite를 `better-sqlite3`로 전환, pg는 `node-postgres` 유지. "포트는 저장소를 주입받지 ORM/드라이버 선택은 인프라 결정"이라는 시야가 생김.
+- 스키마 컬럼을 도메인 타입으로 못 박는다: `status`를 평범한 `text`로 두면 조회 결과가 `string`이라 저장소의 `ReservationRow`와 충돌 → `$type<ReservationStatus>()`로 스키마에서 해결하고, 저장소 코드는 0줄 변경으로 타입이 따라온다. Drizzle의 "쿼리 문법 = 타입" 관점.
+- 드라이버마다 예외 형태가 다르다: better-sqlite3는 원본 에러(`error.code = SQLITE_CONSTRAINT_UNIQUE`)를 그대로 던지지만 node-postgres는 `Failed query:` 래퍼를 씌워 원인이 `error.cause.code`로 밀려난다. → `isUniqueViolation`은 **cause 체인 탐색**으로 만들어 두 드라이버를 한 함수로 커버. "오류 번역"도 결국 어댑터 경계의 책임임을 재확인.
+- 계약 테스트의 안전망 원리: raw 저장소가 통과했던 assertion이 **본문 0자 변경**으로 Drizzle 저장소를 재통과 → 테스트 파일명은 "구현"이 아니라 "DB 방언별 계약"을 가리킨다. 교체 증명은 "양쪽 동시 실행"이 아니라 "동일한 계약이 다른 구현 위에서 성립"하는 것이다.
+- M5의 부분 유니크 인덱스는 여전히 DDL 부트스트랩에 남아 있어, ORM upsert(`onConflictDoUpdate`)와 무관하게 DB 레벨에서 레이스를 방어(AC-35 재통과).
+- DIP 재증명: 조립 루트(index.ts)만 ~10줄 변경, 도메인·포트·유스케이스·라우트 0줄(AC-36). 소유권이 애플리케이션 쪽 포트에 있으니 저장소 구현체가 통째로 갈렸다.
+- 결과: api 59(sqlite 계약 8 + pg 계약 9) + web 19, typecheck·lint·빌드·가드 통과.
+
 ### M6: 예약 목록 / 마이페이지 (2026-09-30)
 
 **목표** — 인증 없이 **이메일로 "내 예약"**을 조회하고 목록에서 취소까지 할 수 있게 한다. api는 조회 쿼리 포트, 웹은 프레젠테이션 쿼리(그리고 그 쿼리가 바라보는 DTO)를 추가.
