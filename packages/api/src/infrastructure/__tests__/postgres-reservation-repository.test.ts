@@ -170,4 +170,35 @@ describe.skipIf(!databaseUrl)("PostgresReservationRepository", () => {
       await repo.findActiveByShowtimeAndSeat("showtime-1", seat),
     ).toBeDefined();
   });
+
+  it("이메일로 예약 목록(상태 포함)을 조회한다 (AC-30)", async () => {
+    const confirmed = new Reservation(
+      "showtime-1",
+      new Seat("A", 1),
+      "hoon@example.com",
+      "r-1",
+    );
+    const cancelled = new Reservation(
+      "showtime-1",
+      new Seat("B", 2),
+      "hoon@example.com",
+      "r-2",
+    );
+    cancelled.cancel();
+    await repo.save(confirmed);
+    await repo.save(cancelled);
+    await repo.save(
+      new Reservation(
+        "showtime-1",
+        new Seat("C", 3),
+        "other@example.com",
+        "r-3",
+      ),
+    );
+
+    const result = await repo.findByCustomerEmail("hoon@example.com");
+
+    expect(result.map((r) => r.id).sort()).toEqual(["r-1", "r-2"]);
+    expect(result.find((r) => r.id === "r-2")?.status).toBe("CANCELLED");
+  });
 });

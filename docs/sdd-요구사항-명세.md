@@ -251,3 +251,49 @@ Feature: 영화 좌석 예약
 - `ON CONFLICT (id)` UPSERT는 **PK 충돌만** 흡수한다. 같은 좌석의 새 id INSERT는 부분 인덱스에 걸려 그대로 예외로 올라오고, 저장소가 이를 애플리케이션 에러(`DuplicateReservationError`)로 번역 → HTTP 409 매핑 재사용(유스케이스·라우트 0줄 수정).
 - 위반 감지 코드는 DB마다 다름: PG `SQLSTATE 23505`, SQLite `errcode 2067`(=`SQLITE_CONSTRAINT_UNIQUE`). 저장소가 각자 자기 DB의 위반을 안다.
 - 애플리케이션 사전 검사는 그대로 두는 이유: (1) 친절한 에러·빠른 응답, (2) 인덱스는 레이스 윈도우의 최종 방어. 성능·UX와 정합성은 별개 겹.
+
+### M6: 예약 목록 / 마이페이지 (2026-09-30)
+
+- api: `ReservationsByCustomerQuery` 포트 + `ListReservationsByCustomerUseCase` + `GET /reservations?customerEmail=`(검증 포함). 저장소 3종(sqlite/pg/in-memory) 모두 구현.
+- web: `ReservationLister` 포트 + `ListReservationsUseCase` + HTTP 어댑터 + `MyReservations` 컴포넌트(App 배선, 목록 취소 지원).
+- 신규 테스트: api 유스케이스 2 + 라우트 2 + 계약(sqlite/pg) 2, web 유스케이스 2 + 어댑터 1 → **api 59 / web 19**, typecheck·lint·가드·빌드 전체 통과.
+
+**학습 메모**
+
+- 포트를 교차 타입에 넣으면 **저장소·어댑터의 의무 구현을 compiler가 강제**한다 — "변경 누락"을 문서가 아니라 타입 시스템이 막아준다 (AC-30이 테스트, 교차 타입이 컴파일 타임 강제).
+- api와 웹의 쿼리 포트 이름이 다르다(`ReservationsByCustomerQuery` vs `ReservationLister`) — 각 경계가 자기 유비쿼터스 언어로 표현하는 것이 인정된 지점.
+- 웹은 `erasableSyntaxOnly`라 **생성자 파라미터 프로퍼티 금지** — 이번에 2번 걸림(테스트 Fake + 유스케이스). 웹 정식 패턴은 필드 선언 + 생성자 대입.
+- GET 쿼리 파라미터 검증(누락/형식)은 **진입점(라우트)의 책임**이라 유스케이스는 검증 없는 얇은 위임자로 유지.
+- 실수 2건 인정: 테스트의 import 경로(`./list-reservations` → `../use-cases/list-reservations`), 소스와 무관하게 describe를 잘못된 블록에 중첩. 구조는 작게 자주 확인하는 것이 낫다.
+- UI 컴포넌트 렌더 테스트는 이 프로젝트에 React Testing Library가 없어 스코프에서 제외(AC-33의 데이터 흐름은 유스케이스·어댑터 테스트가 증명, 렌더는 typecheck·빌드 + 수동 확인).
+
+### M6: 예약 목록 / 마이페이지 (2026-09-30)
+
+**목표** — 인증 없이 **이메일로 "내 예약"**을 조회하고 목록에서 취소까지 할 수 있게 한다. api는 조회 쿼리 포트, 웹은 프레젠테이션 쿼리(그리고 그 쿼리가 바라보는 DTO)를 추가.
+
+**설계**
+
+- api 포트: `ReservationsByCustomerQuery { findByCustomerEmail(email) }` — `ReservationRepository` 교차 타입에 추가(도메인 정렬 없이 상태 포함 전체 반환).
+- api 유스케이스: `ListReservationsByCustomerUseCase`.
+- api 라우트: `GET /reservations?customerEmail=...` → 200 `ReservationDto[]`. 이메일 누락/형식 불일치 → 400.
+- 저장소 3종(sqlite/pg/in-memory) 모두 `findByCustomerEmail` 구현 (기존 409·404 매핑과 무관하게 병렬 추가).
+- 웹 포트: `ReservationLister { listByCustomerEmail(email) }` — `ReservationRepository` 교차 타입에 추가.
+- 웹 유스케이스: `ListReservationsUseCase`. HTTP 어댑터 `GET /reservations` → 배열 DTO → 도메인 변환.
+- 웹 UI: `MyReservations` 컴포넌트 — 이메일 입력 → 조회 → 목록(좌석·회차·상태 + CONFIRMED면 취소 버튼). App에 배선.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-30 | 이메일로 본인 예약 목록을 조회하면 상태(CONFIRMED/CANCELLED) 포함 전부 반환된다. |
+| AC-31 | 이메일이 누락됐거나 형식이 잘못되면 400을 반환한다. |
+| AC-32 | 유스케이스는 쿼리 포트(어댑터 무관)를 통해 목록을 얻는다. |
+| AC-33 | 웹: 조회 결과 좌석·회차·상태가 렌더되고, CONFIRMED 예약은 목록에서 취소할 수 있다. |
+
+**검증**
+
+- api: 유스케이스 1 + 라우트 2 + 저장소 계약(sqlite/pg) 각 1 → 신규 5.
+- web: 유스케이스 1 + HTTP 어댑터 1.
+- 전체 `npm test` + typecheck·lint·가드.
+
+**학습 메모** (완료 시 갱신)

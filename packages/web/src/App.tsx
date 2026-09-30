@@ -14,6 +14,8 @@ import type { Seat } from "./domain/seat";
 import type { Showtime } from "./domain/showtime";
 import { HttpReservationRepository } from "./infrastructure/http/booking-repository";
 import { HttpShowtimeRepository } from "./infrastructure/http/showtime-repository";
+import { ListReservationsUseCase } from "./application/use-cases/list-reservations";
+import { MyReservations } from "./components/MyReservations";
 
 const BASE_URL = "http://localhost:4000";
 
@@ -28,6 +30,10 @@ const loadShowtimes = new LoadShowtimesUseCase(
 );
 const loadShowtimeSeats = new LoadShowtimeSeatsUseCase(
   new HttpShowtimeRepository(BASE_URL),
+);
+
+const listReservations = new ListReservationsUseCase(
+  new HttpReservationRepository(BASE_URL),
 );
 
 export default function App() {
@@ -148,6 +154,14 @@ export default function App() {
           )}
         </div>
       )}
+
+      <MyReservations
+        load={(email) => listReservations.execute(email)}
+        onCancel={async (id) => {
+          await cancelReservation.execute(id);
+          refreshSeats();
+        }}
+      />
     </main>
   );
 }

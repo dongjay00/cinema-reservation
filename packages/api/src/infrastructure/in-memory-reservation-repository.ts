@@ -20,6 +20,10 @@ export class InMemoryReservationRepository implements ReservationRepository {
     }
   }
 
+  async findByCustomerEmail(email: string): Promise<Reservation[]> {
+    return this.reservations.filter((r) => r.customerEmail === email);
+  }
+
   async findById(id: string): Promise<Reservation | undefined> {
     return this.reservations.find((r) => r.id === id);
   }

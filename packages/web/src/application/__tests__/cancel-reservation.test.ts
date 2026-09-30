@@ -18,6 +18,10 @@ class FakeReservationRepository implements ReservationRepository {
       "CANCELLED",
     );
   }
+
+  async listByCustomerEmail(): Promise<Reservation[]> {
+    throw new Error("이 테스트에서 미사용");
+  }
 }
 
 describe("CancelReservationUseCase", () => {

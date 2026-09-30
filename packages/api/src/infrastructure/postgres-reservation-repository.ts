@@ -65,6 +65,14 @@ export class PostgresReservationRepository implements ReservationRepository {
     }
   }
 
+  async findByCustomerEmail(email: string): Promise<Reservation[]> {
+    const { rows } = await this.pool.query<ReservationRow>(
+      "SELECT * FROM reservations WHERE customer_email = $1",
+      [email],
+    );
+    return rows.map(toReservation);
+  }
+
   async findById(id: string): Promise<Reservation | undefined> {
     const { rows } = await this.pool.query<ReservationRow>(
       "SELECT * FROM reservations WHERE id = $1",

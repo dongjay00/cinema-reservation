@@ -32,6 +32,10 @@ class FakeReservationRepository implements ReservationRepository {
   async cancel(_id: string): Promise<Reservation> {
     throw new Error("이 테스트에서 미사용");
   }
+
+  async listByCustomerEmail(): Promise<Reservation[]> {
+    throw new Error("이 테스트에서 미사용");
+  }
 }
 
 describe("ReserveSeatUseCase (FE 애플리케이션)", () => {

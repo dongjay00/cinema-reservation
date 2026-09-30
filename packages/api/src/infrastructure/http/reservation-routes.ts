@@ -5,12 +5,16 @@ import {
 } from "../../application/errors";
 import type { CancelReservationUseCase } from "../../application/use-cases/cancel-reservation";
 import type { CreateReservationUseCase } from "../../application/use-cases/create-reservation";
+import type { ListReservationsByCustomerUseCase } from "../../application/use-cases/list-reservations-by-customer";
 import type { Reservation } from "../../domain/reservation";
 import { Seat } from "../../domain/seat";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function createReservationRouter(
   createReservationUseCase: CreateReservationUseCase,
   cancelReservationUseCase: CancelReservationUseCase,
+  listReservations: ListReservationsByCustomerUseCase,
 ): Router {
   const router = Router();
 
@@ -49,6 +53,25 @@ export function createReservationRouter(
         });
       }
     }
+  });
+
+  router.get("/reservations", async (req, res) => {
+    const customerEmail = req.query.customerEmail;
+
+    if (
+      typeof customerEmail !== "string" ||
+      customerEmail.trim().length === 0
+    ) {
+      res.status(400).json({ error: "customerEmail is required" });
+      return;
+    }
+    if (!EMAIL_PATTERN.test(customerEmail)) {
+      res.status(400).json({ error: "customerEmail is invalid" });
+      return;
+    }
+
+    const reservations = await listReservations.execute(customerEmail);
+    res.json(reservations.map(toResponse));
   });
 
   return router;

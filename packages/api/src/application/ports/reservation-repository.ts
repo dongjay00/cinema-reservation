@@ -18,6 +18,11 @@ export interface ShowtimeSeatsQuery {
   findActiveSeatsByShowtime(showtimeId: string): Promise<Seat[]>;
 }
 
+export interface ReservationsByCustomerQuery {
+  findByCustomerEmail(email: string): Promise<Reservation[]>;
+}
+
 export type ReservationRepository = CreateReservationRepository &
   CancelReservationRepository &
-  ShowtimeSeatsQuery;
+  ShowtimeSeatsQuery &
+  ReservationsByCustomerQuery;

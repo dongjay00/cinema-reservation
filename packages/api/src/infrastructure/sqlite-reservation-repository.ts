@@ -61,6 +61,14 @@ export class SqliteReservationRepository implements ReservationRepository {
     }
   }
 
+  async findByCustomerEmail(email: string): Promise<Reservation[]> {
+    const rows = this.db
+      .prepare("SELECT * FROM reservations WHERE customer_email = ?")
+      .all(email) as ReservationRow[];
+
+    return rows.map(toReservation);
+  }
+
   async findById(id: string): Promise<Reservation | undefined> {
     const row = this.db
       .prepare("SELECT * FROM reservations WHERE id = ?")

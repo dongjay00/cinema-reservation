@@ -38,6 +38,18 @@ export class HttpReservationRepository implements ReservationRepository {
 
     return toReservation(await toDto(res));
   }
+
+  async listByCustomerEmail(email: string): Promise<Reservation[]> {
+    const res = await fetch(
+      `${this.baseUrl}/reservations?customerEmail=${encodeURIComponent(email)}`,
+    );
+
+    if (!res.ok) {
+      throw new Error(`Reservation API returned ${res.status}`);
+    }
+    const dtos = (await res.json()) as ReservationDto[];
+    return dtos.map(toReservation);
+  }
 }
 
 async function toDto(res: Response): Promise<ReservationDto> {

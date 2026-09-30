@@ -15,4 +15,10 @@ export interface ReservationCanceller {
   cancel(id: string): Promise<Reservation>;
 }
 
-export type ReservationRepository = ReservationCreator & ReservationCanceller;
+export interface ReservationLister {
+  listByCustomerEmail(email: string): Promise<Reservation[]>;
+}
+
+export type ReservationRepository = ReservationCreator &
+  ReservationCanceller &
+  ReservationLister;

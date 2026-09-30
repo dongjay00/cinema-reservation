@@ -75,4 +75,36 @@ describe("HttpReservationRepository (HTTP 어댑터)", () => {
 
     expect(reservation.status).toBe("CANCELLED");
   });
+
+  it("listByCustomerEmail: 배열 응답을 Reservation 목록으로 변환한다", async () => {
+    const body = [
+      {
+        id: "res-1",
+        showtimeId: "showtime-1",
+        seatLabel: "A-7",
+        customerEmail: "hoon@example.com",
+        status: "CONFIRMED",
+      },
+      {
+        id: "res-2",
+        showtimeId: "showtime-1",
+        seatLabel: "B-3",
+        customerEmail: "hoon@example.com",
+        status: "CANCELLED",
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(body), { status: 200 }),
+      ),
+    );
+
+    const repo = new HttpReservationRepository("http://localhost:4000");
+    const reservations = await repo.listByCustomerEmail("hoon@example.com");
+
+    expect(reservations).toHaveLength(2);
+    expect(reservations[0].seat.label).toBe("A-7");
+    expect(reservations[1].status).toBe("CANCELLED");
+  });
 });

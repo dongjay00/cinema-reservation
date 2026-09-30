@@ -63,3 +63,29 @@ describe("POST /reservations/:id/cancel", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("GET /reservations?customerEmail=", () => {
+  it("이메일의 예약 목록을 (상태 포함) 배열로 반환한다 (AC-30)", async () => {
+    await request(app).post("/reservations").send({
+      showtimeId: "showtime-1",
+      row: "A",
+      number: 1,
+      customerEmail: "hoon@example.com",
+    });
+
+    const res = await request(app).get(
+      "/reservations?customerEmail=hoon%40example.com",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].seatLabel).toBe("A-1");
+    expect(res.body[0].status).toBe("CONFIRMED");
+  });
+
+  it("customerEmail이 없으면 400을 반환한다 (AC-31)", async () => {
+    const res = await request(app).get("/reservations");
+
+    expect(res.status).toBe(400);
+  });
+});
