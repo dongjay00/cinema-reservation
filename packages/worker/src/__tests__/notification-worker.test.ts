@@ -28,25 +28,29 @@ class FakeRedis {
   }
 }
 
+function createdEntry(id: string): [string, string[]] {
+  return [
+    id,
+    [
+      "payload",
+      JSON.stringify({
+        type: "ReservationCreated" as const,
+        reservationId: "res-1",
+        showtimeId: "s1",
+        seatRow: "A",
+        seatNumber: 1,
+        customerEmail: "a@b.c",
+      }),
+    ],
+  ];
+}
+
 describe("NotificationWorker", () => {
   it("소비한 메시지를 싱크에 전달하고 ACK한다 (AC-45)", async () => {
     const notified: ReservationEventDto[] = [];
     const fake = new FakeRedis();
     fake.entries = [
-      [
-        "1-0",
-        [
-          "payload",
-          JSON.stringify({
-            type: "ReservationCreated",
-            reservationId: "res-1",
-            showtimeId: "s1",
-            seatRow: "A",
-            seatNumber: 1,
-            customerEmail: "a@b.c",
-          }),
-        ],
-      ],
+      createdEntry("1-0"),
       [
         "2-0",
         [
@@ -54,6 +58,7 @@ describe("NotificationWorker", () => {
           JSON.stringify({
             type: "ReservationCancelled",
             reservationId: "res-2",
+            showtimeId: "s1",
             customerEmail: "a@b.c",
           }),
         ],
@@ -72,12 +77,40 @@ describe("NotificationWorker", () => {
       "ReservationCancelled",
     ]);
   });
+
+  it("포이즌 메시지는 ACK하지 않고 넘어간다 (루프 보호)", async () => {
+    const notified: ReservationEventDto[] = [];
+    const fake = new FakeRedis();
+    fake.entries = [createdEntry("1-0"), ["2-0", ["payload", "{broken-json"]]];
+
+    const worker = new NotificationWorker(fake as unknown as Redis, {
+      notify: (dto) => notified.push(dto),
+    });
+    const handled = await worker.runOnce();
+
+    expect(handled).toBe(1);
+    expect(fake.acked).toEqual(["1-0"]);
+    expect(notified).toHaveLength(1);
+  });
+
+  it("payload 필드가 없는 메시지도 ACK하지 않고 넘어간다", async () => {
+    const fake = new FakeRedis();
+    fake.entries = [["3-0", ["other-field", "x"]]];
+
+    const worker = new NotificationWorker(fake as unknown as Redis, {
+      notify: () => {},
+    });
+    const handled = await worker.runOnce();
+
+    expect(handled).toBe(0);
+    expect(fake.acked).toEqual([]);
+  });
 });
 
 const redisUrl = process.env.REDIS_URL;
 
 describe.skipIf(!redisUrl)("NotificationWorker 실 Redis", () => {
-  const redis = new Redis(redisUrl!);
+  const redis = new Redis(redisUrl as string);
 
   afterAll(async () => {
     await redis.quit();

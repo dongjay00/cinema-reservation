@@ -36,6 +36,7 @@ function isReservationCancelled(
   return (
     value.type === "ReservationCancelled" &&
     typeof value.reservationId === "string" &&
+    typeof value.showtimeId === "string" &&
     typeof value.customerEmail === "string"
   );
 }

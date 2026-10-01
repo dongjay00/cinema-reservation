@@ -11,9 +11,9 @@ Clean Architecture · 객체지향 · SOLID를 **SDD → DDD → TDD** 스프린
 | 프론트엔드 | React 19 · Vite · TypeScript |
 | 백엔드 | Express 5 · Drizzle ORM — SQLite/better-sqlite3(기본), 선택적으로 Postgres 18 (raw SQL 저장소는 학습용 레거시로 유지) · 캐시 — TTL 인메모리(기본) / Redis(선택) |
 | 워커 | @cinema/worker — Redis Stream 컨슈머 (consumer group + XACK, 이벤트 알림 데모) |
-| 테스트 | Vitest + Supertest (api 72, worker 6, web 19) + 아키텍처 가드 |
+| 테스트 | Vitest + Supertest (api 77, worker 10, web 23) + 아키텍처 가드 |
 | 린트 · 포맷 | Biome (루트 단일 설정) |
-| CI | GitHub Actions (lint · typecheck · test · build + postgres service) |
+| CI | GitHub Actions (lint · typecheck · test · build + postgres & redis services) |
 
 ## 모노레포 구조
 
@@ -28,7 +28,7 @@ clean-architecture/
 
 ## 아키텍처: "안쪽으로 향하는 의존성"
 
-양쪽 패키지 모두 4개 레이어로 나뉘며, **의존성은 항상 안쪽(도메인)을 향합니다**.
+api · web은 **동일한 레이어 원칙**(domain → application → infrastructure)을 미러링하고, worker는 `@cinema/shared` 계약으로만 api와 결합합니다. **의존성은 항상 안쪽(도메인)을 향합니다**.
 
 ```
 domain         비즈니스 규칙 (예약·좌석·회차 검증) — 외부 지식 없음
@@ -72,7 +72,7 @@ DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 | 명령 | 동작 |
 |---|---|
 | `npm run dev:api` / `dev:worker` / `dev:web` | 개발 서버 (tsx watch / vite) |
-| `npm test` | api + worker + web 전체 테스트 (api 72 · worker 6 · web 19 — env 미지정 시 pg·redis 일부 제외) |
+| `npm test` | api + worker + web 전체 테스트 (api 77 · worker 10 · web 23 — env 미지정 시 pg·redis 일부 skip) |
 | `npm run test:api` / `test:worker` / `test:web` | 각 워크스페이스 테스트 |
 | `npm run typecheck` | 전 워크스페이스 타입 검사 |
 | `npm run lint` | biome 검사 (포맷 + 린트) |
@@ -98,3 +98,4 @@ DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 | 7 | ORM 교체 (raw SQL → Drizzle) | ✅ |
 | 8 | 캐싱 (좌석 TTL — 인메모리 + Redis 어댑터) | ✅ |
 | 9 | MSA 기초 (Redis Stream 이벤트 + 알림 워커) | ✅ |
+| 10 | 정리 라운드 (리뷰 기반 버그·문서 수정) | ✅ |

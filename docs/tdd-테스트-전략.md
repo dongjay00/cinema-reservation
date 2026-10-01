@@ -3,9 +3,9 @@
 > Test-Driven Development. **"코드를 먼저 설계하면 그 반대의 상상을 못 한다"** → 테스트부터 설계하면
 > 필요 이상의 구현(DB, 프레임워크)을 미리 만들지 않게 된다. 레드 → 그린 → 리팩터.
 
-- 작성일: 2026-09-18
-- 도구: Vitest (api 워크스페이스에서 실행)
-- 실행: `npm run test:api` (루트) 또는 `npm run test --workspace @cinema/api`
+- 작성일: 2026-09-18 (마일스톤 진행과 함께 갱신 중)
+- 도구: Vitest (api · worker · web 워크스페이스별 실행, 루트 `npm test`로 집계)
+- 실행: `npm run test:api` / `test:worker` / `test:web` — 또는 전체 `npm test`
 
 ## 1. 사이클 (이번에는 이미 작성돼 있는 상태로 보여드립니다)
 
@@ -43,8 +43,11 @@ packages/api/src/domain/__tests__/
 ├── movie.test.ts
 ├── showtime.test.ts
 ├── seat.test.ts
-└── reservation.test.ts
+├── reservation.test.ts
+└── events.test.ts         (M4 도메인 이벤트 기록/반출)
 ```
+
+현재 전체 테스트는 **api 77 · worker 10 · web 23**입니다. api는 자체 `domain`/`application`/`infrastructure`(계약·HTTP·캐시·Redis)의 유닛·통합 테스트를, worker는 파싱·소비·아키텍처 가드를, web은 웹 도메인·유스케이스·HTTP 어댑터를 각각 담당합니다.
 
 회의 규칙:
 - **테스트는 given/when/then 문장으로**: 테스트 본문을 그렇게 읽을 수 있어야 한다.
@@ -60,7 +63,12 @@ packages/api/src/domain/__tests__/
 ## 5. 실행 방법
 
 ```bash
-npm run test:api          # 1회 실행
-npm run test:watch        # 파일 변경 시 재실행 (TDD 개발 중)
-npm run typecheck         # 루트: 전체 타입 검사 (strict)
+npm test                     # 전체: test:api → test:worker → test:web
+npm run test:api             # api 77 (env 미지정 시 pg·redis 통합 일부 skip)
+npm run test:worker          # worker 10
+npm run test:web             # web 23
+npm run test:watch --workspace @cinema/api   # 파일 변경 시 재실행 (TDD 개발 중)
+npm run typecheck            # 루트: 전체 타입 검사 (strict)
 ```
+
+`REDIS_URL`/`DATABASE_URL`을 주면 api·worker의 통합 테스트(pg·Redis)가 skip 없이 실행됩니다.

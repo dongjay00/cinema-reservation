@@ -20,4 +20,11 @@ describe("InMemoryCache", () => {
     now = 6_001;
     await expect(cache.get("k")).resolves.toBeUndefined();
   });
+
+  it("delete하면 즉시 사라진다", async () => {
+    const cache = new InMemoryCache(() => 1_000);
+    await cache.set("k", "v", 60_000);
+    await cache.delete("k");
+    await expect(cache.get("k")).resolves.toBeUndefined();
+  });
 });

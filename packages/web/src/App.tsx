@@ -47,22 +47,32 @@ export default function App() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    loadShowtimes.execute().then((list) => {
-      setShowtimes(list);
-      if (list.length > 0) {
-        setSelectedShowtimeId(list[0].id);
-      }
-    });
+    loadShowtimes
+      .execute()
+      .then((list) => {
+        setShowtimes(list);
+        if (list.length > 0) {
+          setSelectedShowtimeId(list[0].id);
+        }
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "상영 목록 로드 실패");
+      });
   }, []);
 
   useEffect(() => {
     if (!selectedShowtimeId) {
       return;
     }
-    loadShowtimeSeats.execute(selectedShowtimeId).then((s) => {
-      setSeats(s);
-      setSelectedSeat(undefined);
-    });
+    loadShowtimeSeats
+      .execute(selectedShowtimeId)
+      .then((s) => {
+        setSeats(s);
+        setSelectedSeat(undefined);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "좌석 목록 로드 실패");
+      });
   }, [selectedShowtimeId]);
 
   const draft = useMemo(() => {
@@ -75,8 +85,11 @@ export default function App() {
     return d;
   }, [selectedShowtimeId, selectedSeat, email]);
 
-  const refreshSeats = () => {
-    loadShowtimeSeats.execute(selectedShowtimeId).then(setSeats);
+  const refreshSeats = async () => {
+    if (!selectedShowtimeId) {
+      return;
+    }
+    return loadShowtimeSeats.execute(selectedShowtimeId).then(setSeats);
   };
 
   const handleSubmit = async () => {
@@ -87,7 +100,7 @@ export default function App() {
     setError(undefined);
     try {
       setReservation(await reserveSeat.execute(draft));
-      refreshSeats();
+      await refreshSeats();
     } catch (err) {
       if (err instanceof DuplicateSeatError) {
         setError("이미 예약된 좌석입니다. 다른 좌석을 선택하세요.");
@@ -107,7 +120,7 @@ export default function App() {
     setError(undefined);
     try {
       setReservation(await cancelReservation.execute(reservation.id));
-      refreshSeats();
+      await refreshSeats();
     } catch (err) {
       setError(err instanceof Error ? err.message : "취소에 실패했습니다.");
     } finally {
@@ -159,7 +172,7 @@ export default function App() {
         load={(email) => listReservations.execute(email)}
         onCancel={async (id) => {
           await cancelReservation.execute(id);
-          refreshSeats();
+          await refreshSeats();
         }}
       />
     </main>

@@ -8,7 +8,7 @@ import { RedisCache } from "../redis-cache";
 const redisUrl = process.env.REDIS_URL;
 
 describe.skipIf(!redisUrl)("RedisCache", () => {
-  const redis = new Redis(redisUrl!);
+  const redis = new Redis(redisUrl as string);
 
   afterAll(async () => {
     await redis.quit();
@@ -31,9 +31,17 @@ describe.skipIf(!redisUrl)("RedisCache", () => {
   it("TTL(ms)이 지나면 만료된다", async () => {
     const cache = new RedisCache(redis);
     const key = `zz-expire-${Date.now()}`;
-    await cache.set(key, "v", 100);
+    await cache.set(key, "v", 500);
     expect(await cache.get(key)).toBe("v");
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await expect(cache.get(key)).resolves.toBeUndefined();
+  });
+
+  it("delete하면 즉시 사라진다", async () => {
+    const cache = new RedisCache(redis);
+    const key = `zz-delete-${Date.now()}`;
+    await cache.set(key, "v", 60_000);
+    await cache.delete(key);
     await expect(cache.get(key)).resolves.toBeUndefined();
   });
 

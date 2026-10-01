@@ -15,4 +15,8 @@ export class RedisCache implements Cache {
   async set<T>(key: string, value: T, ttlMs: number): Promise<void> {
     await this.redis.set(key, JSON.stringify(value), "PX", ttlMs);
   }
+
+  async delete(key: string): Promise<void> {
+    await this.redis.del(key);
+  }
 }

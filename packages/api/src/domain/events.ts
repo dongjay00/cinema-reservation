@@ -17,6 +17,7 @@ export class ReservationCreated implements DomainEvent {
 export class ReservationCancelled implements DomainEvent {
   constructor(
     readonly reservationId: string,
+    readonly showtimeId: string,
     readonly customerEmail: string,
     readonly occurredAt: Date = new Date(),
   ) {}

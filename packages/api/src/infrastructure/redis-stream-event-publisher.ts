@@ -25,6 +25,7 @@ export function toReservationEventDto(event: DomainEvent): ReservationEventDto {
     return {
       type: "ReservationCancelled",
       reservationId: event.reservationId,
+      showtimeId: event.showtimeId,
       customerEmail: event.customerEmail,
     };
   }

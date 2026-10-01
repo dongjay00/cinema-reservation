@@ -31,6 +31,7 @@ describe("도메인 이벤트 (AC-21~23, AC-25)", () => {
     const events = reservation.takeRecordedEvents();
     expect(events).toHaveLength(1);
     expect(events[0]).toBeInstanceOf(ReservationCancelled);
+    expect((events[0] as ReservationCancelled).showtimeId).toBe("showtime-1");
   });
 
   it("takeRecordedEvents는 기록을 돌려준 뒤 비운다", () => {

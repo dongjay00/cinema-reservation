@@ -254,9 +254,27 @@ Feature: 영화 좌석 예약
 
 ### M6: 예약 목록 / 마이페이지 (2026-09-30)
 
-- api: `ReservationsByCustomerQuery` 포트 + `ListReservationsByCustomerUseCase` + `GET /reservations?customerEmail=`(검증 포함). 저장소 3종(sqlite/pg/in-memory) 모두 구현.
-- web: `ReservationLister` 포트 + `ListReservationsUseCase` + HTTP 어댑터 + `MyReservations` 컴포넌트(App 배선, 목록 취소 지원).
+**목표** — 인증 없이 **이메일로 "내 예약"**을 조회하고 목록에서 취소까지 할 수 있게 한다. api는 조회 쿼리 포트, 웹은 프레젠테이션 쿼리(그리고 그 쿼리가 바라보는 DTO)를 추가.
+
+**설계**
+
+- api 포트: `ReservationsByCustomerQuery { findByCustomerEmail(email) }` — `ReservationRepository` 교차 타입에 추가(도메인 정렬 없이 상태 포함 전체 반환).
+- api 유스케이스: `ListReservationsByCustomerUseCase`.
+- api 라우트: `GET /reservations?customerEmail=...` → 200 `ReservationDto[]`. 이메일 누락/형식 불일치 → 400.
+- 저장소 3종(sqlite/pg/in-memory) 모두 `findByCustomerEmail` 구현 (기존 409·404 매핑과 무관하게 병렬 추가).
+- 웹 포트: `ReservationLister { listByCustomerEmail(email) }` — `ReservationRepository` 교차 타입에 추가.
+- 웹 유스케이스: `ListReservationsUseCase`. HTTP 어댑터 `GET /reservations` → 배열 DTO → 도메인 변환.
+- 웹 UI: `MyReservations` 컴포넌트 — 이메일 입력 → 조회 → 목록(좌석·회차·상태 + CONFIRMED면 취소 버튼). App에 배선.
 - 신규 테스트: api 유스케이스 2 + 라우트 2 + 계약(sqlite/pg) 2, web 유스케이스 2 + 어댑터 1 → **api 59 / web 19**, typecheck·lint·가드·빌드 전체 통과.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-30 | 이메일로 본인 예약 목록을 조회하면 상태(CONFIRMED/CANCELLED) 포함 전부 반환된다. |
+| AC-31 | 이메일이 누락됐거나 형식이 잘못되면 400을 반환한다. |
+| AC-32 | 유스케이스는 쿼리 포트(어댑터 무관)를 통해 목록을 얻는다. |
+| AC-33 | 웹: 조회 결과 좌석·회차·상태가 렌더되고, CONFIRMED 예약은 목록에서 취소할 수 있다. |
 
 **학습 메모**
 
@@ -311,7 +329,7 @@ Feature: 영화 좌석 예약
 - 데코레이터(`infrastructure/caching-showtime-seats-query.ts`): `CachingShowtimeSeatsQuery implements ShowtimeSeatsQuery` — `delegate` 위임 + 캐시 조회. 키 `showtime:{id}:seats`, 기본 TTL 5초(주입 가능). 캐시 적중 시 원본 쿼리 호출 생략.
 - 조립: `createApp`에 선택 인자 `seatsQuery: ShowtimeSeatsQuery = repository` 추가(기존 호출부 무변경), `index.ts`만 데코레이터를 감싸서 주입.
 - **Redis 어댑터(M8.5)**: `Cache` 포트 구현으로 `RedisCache`(ioredis) 추가 — `JSON.stringify/parse` + TTL은 ms 단위 `PX`. 조립 루트가 `REDIS_URL` 제공 시 Redis, 아니면 InMemory 선택. 원격 캐시라 도메인 객체를 담을 수 없어 데코레이터가 **JSON 안전한 프로젝션(`{row, number}[]`)을 캐시하고, 힛 시 `Seat`으로 재구성**한다.
-- **무효화 정책**: TTL 만료에만 의존(쓰기 원자성·동시성은 M5가 담당). 예약 직후 최대 TTL만큼 좌석 목록이 늙을 수 있음 — 쓰기 발생 시 `delete(key)` 하는 **이벤트 기반 무효화**(M4의 도메인 이벤트 연결)는 스코프 밖 후속 과제로 기록.
+- **무효화 정책**: 기본은 TTL 만료 의존(쓰기 원자성·동시성은 M5가 담당). 스코프 밖 후속 과제로 기록해 두었던 **이벤트 기반 무효화**(쓰기 발생 시 `delete(key)`)는 M10 정리 라운드에서 `InvalidatingEventPublisher`로 구현 — TTL 격차가 사라짐.
 - 신규 테스트: `in-memory-cache.test.ts`(hit/miss/만료 3) + `caching-showtime-seats-query.test.ts`(첫 조회 위임·TTL 내 재조회 위임 1회·TTL 만료 후 재위임·showtime별 키 분리 — 3, spy 포트 사용).
 
 **인수 기준**
@@ -336,7 +354,7 @@ Feature: 영화 좌석 예약
 - OCP를 데코레이터로: 기존 `ShowtimeSeatsQuery` 구현을 수정하지 않고 **같은 포트를 구현하는 새 클래스로 감싸** 읽기 경로만 보강. 쓰기·도메인은 0줄(AC-40).
 - 테스트 결정성: 캐시 만료를 기다리는 `setTimeout` 대신 **주입 가능한 clock(`now()`)을 생성자로** 받아 가짜 시계로 만료를 순간 이동 — 단위 테스트가 빨라지고 결정적.
 - 네트워크 왕복을 줄이는 곳은 좁은 읽기 포트(`ShowtimeSeatsQuery`)가 최적 — ISP로 분리된 포트 덕에 "읽기만 캐시"라는 의도를 정확히 표현.
-- TTL은 트레이드오프: 예약 직후 최대 5초간 좌석 목록이 늙을 수 있음(M5의 원자성 백스톱이 최종 정확성은 보장하므로 충돌 예약은 409). 쓰기 발생 시 `cache.delete(key)`하는 **이벤트 기반 무효화**(M4 도메인 이벤트 재사용)로 격차를 줄일 수 있음 — 후속 과제로 기록.
+- TTL은 트레이드오프: 예약 직후 최대 5초간 좌석 목록이 늙을 수 있음(M5의 원자성 백스톱이 최종 정확성은 보장하므로 충돌 예약은 409). M10에서 이 간극을 **이벤트 기반 무효화**(`InvalidatingEventPublisher` — M4 도메인 이벤트에 `showtimeId`, M8 캐시에 `delete`)로 닫았다.
 - 결과: api 65(sqlite 계약 8 + pg 계약 9 포함) + web 19, typecheck·lint·빌드·가드 통과. "좌석 목록을 다섯 번 연속 조회하면 DB는 한 번만 친다".
 - Redis 스왑(M8.5): 캐시 계약 그대로, 구현만 ioredis로 교체 — 포트 소유권의 재현. 다만 **원격 캐시는 "경계에선 전송 가능한 형태로 변환"을 강제**한다: `Seat` 클래스 인스턴스는 직렬화되면 프로토타입/`equals()`/`label` getter를 잃으므로, 데코레이터가 프로젝션(`{row,number}[]`)만 캐시하고 힛 시 재구성. 캐시 계약은 "JSON 안전 데이터"라는 암묵적 규칙이 생겼고 InMemory·Redis 모두 준수. TTL은 `EX`(초 단위) 대신 `PX`(ms)로 포트의 ms 규약을 유지.
 - 결과: api 69 + web 19(Redis 테스트는 로컬/CI 모두 `REDIS_URL` 있어서 실제 실행, 없으면 skip).
@@ -378,35 +396,23 @@ Feature: 영화 좌석 예약
   - `XGROUP CREATE ... $`는 **그룹 생성 이후 메시지만** 배달 → "브로커 먼저, 발행 나중" 순서가 맞다(통합 테스트에서 `ensureGroup`을 `xadd`보다 먼저).
 - 테스트의 캐시 키 위생: 고정 키 + 긴 TTL은 **이전 실행의 캐시가 살아 있어 첫 조회가 캐시 적중**하는 flake를 만든다 → 테스트 선두에서 `del`(AC-42가 이전 결과로 2회 연속 실패한 사례).
 - 결과: api 72(무 env 57+15 skip) / worker 6(무 env 5+1 skip) / web 19. 전체 가드(worker는 `@cinema/shared` 외 워크스페이스 import 금지) 통과.
-- 남은 과제(문서로만): transactional outbox(손실 방어), 이벤트 멱등(중복 소비 방어), 이벤트 기반 캐시 무효화(M4+M8 연결).
+- 남은 과제(문서로만): transactional outbox(손실 방어), 이벤트 멱등(중복 소비 방어).
 
-### M6: 예약 목록 / 마이페이지 (2026-09-30)
+### M10: 정리 라운드 — 전체 리뷰 기반 수정 (2026-10-01)
 
-**목표** — 인증 없이 **이메일로 "내 예약"**을 조회하고 목록에서 취소까지 할 수 있게 한다. api는 조회 쿼리 포트, 웹은 프레젠테이션 쿼리(그리고 그 쿼리가 바라보는 DTO)를 추가.
+**목표** — M1~M9가 모두 끝난 뒤, 변경분에 대한 **전체 코드·문서 리뷰**를 수행하고 발견된 버그와 스테일 문서를 정리한다(기능 추가 아님).
 
-**설계**
+**수정 (코드)**
 
-- api 포트: `ReservationsByCustomerQuery { findByCustomerEmail(email) }` — `ReservationRepository` 교차 타입에 추가(도메인 정렬 없이 상태 포함 전체 반환).
-- api 유스케이스: `ListReservationsByCustomerUseCase`.
-- api 라우트: `GET /reservations?customerEmail=...` → 200 `ReservationDto[]`. 이메일 누락/형식 불일치 → 400.
-- 저장소 3종(sqlite/pg/in-memory) 모두 `findByCustomerEmail` 구현 (기존 409·404 매핑과 무관하게 병렬 추가).
-- 웹 포트: `ReservationLister { listByCustomerEmail(email) }` — `ReservationRepository` 교차 타입에 추가.
-- 웹 유스케이스: `ListReservationsUseCase`. HTTP 어댑터 `GET /reservations` → 배열 DTO → 도메인 변환.
-- 웹 UI: `MyReservations` 컴포넌트 — 이메일 입력 → 조회 → 목록(좌석·회차·상태 + CONFIRMED면 취소 버튼). App에 배선.
+- **이벤트 기반 캐시 무효화 구현**(M8의 후속 과제를 실제로 연결): `Cache` 포트에 `delete(key)` 추가 · `InMemoryCache`/`RedisCache` 구현 · `showtimeSeatsCacheKey()` 공유 · 신규 `InvalidatingEventPublisher`(M4 도메인 이벤트의 `showtimeId`로 키 삭제, 캐시 오류는 fail-open)를 조립 루트에서 감싸 주입.
+- 이를 위해 `ReservationCancelled` 도메인 이벤트와 shared DTO에 **`showtimeId` 필드 추가**(이벤트 자기포함성 — "어느 회차가 취소됐는지" 이벤트만으로 앎). api·worker 모두 DTO 계약 갱신.
+- **워커 하드닝**: 포이즌 메시지가 루프를 죽이던 문제 → 메시지 단위 try/catch(에러 로그 + **ACK하지 않고 남김** = at-least-once 유지), `XREADGROUP` 단일 클라이언트 유지, `main.ts`에 graceful shutdown(`AbortSignal` + `SIGINT`/`SIGTERM` → `redis.quit()`)·`redis.on("error")`·fatal 로그 추가.
+- **웹 오류 매핑**: 400/409/404 응답의 도메인 메시지를 버리고 상태 코드만 남기던 것을, 응답 본문 `{ error }` 유지로 수정(JSON 아닌 응답은 상태 코드 폴백). `seatLabel` 파싱은 `split("-")` → **`lastIndexOf` 기준**(row에 하이픈 안전). `App.tsx`에 fetch `.catch` 추가 및 `refreshSeats` 가드.
+- **의존성/하이젠**: api·web `package.json`에 `@cinema/shared` 선언(hoisting 심링크 의존 제거) · `index.ts` Redis 클라이언트 2개 → 1개 공유 · 웹 TS 버전을 루트 TS7로 통일(웹 devDep `typescript ~6` 제거).
 
-**인수 기준**
+**수정 (문서)**
 
-| AC | 설명 |
-|---|---|
-| AC-30 | 이메일로 본인 예약 목록을 조회하면 상태(CONFIRMED/CANCELLED) 포함 전부 반환된다. |
-| AC-31 | 이메일이 누락됐거나 형식이 잘못되면 400을 반환한다. |
-| AC-32 | 유스케이스는 쿼리 포트(어댑터 무관)를 통해 목록을 얻는다. |
-| AC-33 | 웹: 조회 결과 좌석·회차·상태가 렌더되고, CONFIRMED 예약은 목록에서 취소할 수 있다. |
+- SDD 자체: 이전에 **M6 섹션이 2개**(M5 뒤 + M9 뒤)로 중복 — 병합해 하나로 정리(AC-30~33 포함).
+- `packages/api`·`packages/web`·`packages/shared` README와 `docs/tdd-테스트-전략.md`·루트 README에 남아있던 스테일 수치·구조 표기(테스트 수, better-sqlite3/Drizzle, `components` 레이어 위치, 이벤트 계약 등) 갱신.
 
-**검증**
-
-- api: 유스케이스 1 + 라우트 2 + 저장소 계약(sqlite/pg) 각 1 → 신규 5.
-- web: 유스케이스 1 + HTTP 어댑터 1.
-- 전체 `npm test` + typecheck·lint·가드.
-
-**학습 메모** (완료 시 갱신)
+**검증** — api **77**(무 env 61+16 skip) / worker **10**(무 env 9+1 skip) / web **23**. typecheck·lint·빌드·전체 가드 통과.

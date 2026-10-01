@@ -73,6 +73,8 @@ export class Reservation {
       throw new Error("Cannot cancel an already cancelled reservation");
     }
     this._status = "CANCELLED";
-    this._events.push(new ReservationCancelled(this.id, this.customerEmail));
+    this._events.push(
+      new ReservationCancelled(this.id, this.showtimeId, this.customerEmail),
+    );
   }
 }

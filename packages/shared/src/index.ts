@@ -46,6 +46,7 @@ export type ReservationEventDto =
   | {
       type: "ReservationCancelled";
       reservationId: string;
+      showtimeId: string;
       customerEmail: string;
     };
 

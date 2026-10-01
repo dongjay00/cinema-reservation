@@ -22,4 +22,8 @@ export class InMemoryCache implements Cache {
   async set<T>(key: string, value: T, ttlMs: number): Promise<void> {
     this.store.set(key, { value, expiresAt: this.now() + ttlMs });
   }
+
+  async delete(key: string): Promise<void> {
+    this.store.delete(key);
+  }
 }

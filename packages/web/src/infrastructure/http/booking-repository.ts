@@ -28,7 +28,7 @@ export class HttpReservationRepository implements ReservationRepository {
       body: JSON.stringify(request),
     });
 
-    return toReservation(await toDto(res));
+    return toReservation(await toReservationDto(res));
   }
 
   async cancel(id: string): Promise<Reservation> {
@@ -36,7 +36,7 @@ export class HttpReservationRepository implements ReservationRepository {
       method: "POST",
     });
 
-    return toReservation(await toDto(res));
+    return toReservation(await toReservationDto(res));
   }
 
   async listByCustomerEmail(email: string): Promise<Reservation[]> {
@@ -45,30 +45,50 @@ export class HttpReservationRepository implements ReservationRepository {
     );
 
     if (!res.ok) {
-      throw new Error(`Reservation API returned ${res.status}`);
+      throw await toApiError(res);
     }
     const dtos = (await res.json()) as ReservationDto[];
     return dtos.map(toReservation);
   }
 }
 
-async function toDto(res: Response): Promise<ReservationDto> {
-  if (res.status === 409) {
-    throw new DuplicateSeatError("이미 예약된 좌석입니다");
-  }
+async function toReservationDto(res: Response): Promise<ReservationDto> {
   if (!res.ok) {
-    throw new Error(`Reservation API returned ${res.status}`);
+    throw await toApiError(res);
   }
   return (await res.json()) as ReservationDto;
 }
 
+async function toApiError(res: Response): Promise<Error> {
+  let message = `Reservation API returned ${res.status}`;
+  try {
+    const body = (await res.json()) as { error?: string };
+    if (body && typeof body.error === "string") {
+      message = body.error;
+    }
+  } catch {
+    // 응답 본문이 JSON이 아니면 기본 메시지를 유지한다.
+  }
+  if (res.status === 409) {
+    return new DuplicateSeatError(message);
+  }
+  return new Error(message);
+}
+
 function toReservation(dto: ReservationDto): Reservation {
-  const [row, number] = dto.seatLabel.split("-");
   return new Reservation(
     dto.id,
     dto.showtimeId,
-    new Seat(row, Number(number)),
+    seatFromLabel(dto.seatLabel),
     dto.customerEmail,
     dto.status,
   );
+}
+
+function seatFromLabel(label: string): Seat {
+  const dash = label.lastIndexOf("-");
+  if (dash === -1) {
+    throw new Error(`Invalid seat label: ${label}`);
+  }
+  return new Seat(label.slice(0, dash), Number(label.slice(dash + 1)));
 }

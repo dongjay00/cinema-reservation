@@ -51,24 +51,34 @@ export class NotificationWorker {
     let handled = 0;
     for (const [, entries] of result) {
       for (const [id, fields] of entries) {
-        const flatFields = fields ?? [];
-        const payloadIndex = flatFields.indexOf("payload");
-        if (payloadIndex !== -1) {
+        try {
+          const flatFields = fields ?? [];
+          const payloadIndex = flatFields.indexOf("payload");
+          if (payloadIndex === -1) {
+            throw new Error("missing payload field");
+          }
           const dto: ReservationEventDto = parseReservationEvent(
             flatFields[payloadIndex + 1],
           );
           this.sink.notify(dto);
+          await this.redis.xack(RESERVATION_EVENT_STREAM, WORKER_GROUP, id);
+          handled += 1;
+        } catch (error) {
+          // 포이즌 메시지는 ACK하지 않고 남겨 둔다 — at-least-once 유지
+          // (다른 소비자가 XAUTOCLAIM 등으로 재시도 가능).
+          console.error(
+            `[worker] message ${id} skipped (not ACKed):`,
+            error instanceof Error ? error.message : error,
+          );
         }
-        await this.redis.xack(RESERVATION_EVENT_STREAM, WORKER_GROUP, id);
-        handled += 1;
       }
     }
     return handled;
   }
 
-  async start(): Promise<void> {
+  async start(signal?: AbortSignal): Promise<void> {
     await this.ensureGroup();
-    for (;;) {
+    while (!signal?.aborted) {
       await this.runOnce();
     }
   }

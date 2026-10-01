@@ -29,17 +29,22 @@ describe("toReservationEventDto", () => {
   });
 
   it("ReservationCancelled를 shared DTO로 변환한다", () => {
-    const event = new ReservationCancelled("res-1", "hoon@example.com");
+    const event = new ReservationCancelled(
+      "res-1",
+      "showtime-1",
+      "hoon@example.com",
+    );
     expect(toReservationEventDto(event)).toEqual({
       type: "ReservationCancelled",
       reservationId: "res-1",
+      showtimeId: "showtime-1",
       customerEmail: "hoon@example.com",
     });
   });
 });
 
 describe.skipIf(!redisUrl)("RedisStreamEventPublisher", () => {
-  const redis = new Redis(redisUrl!);
+  const redis = new Redis(redisUrl as string);
 
   afterAll(async () => {
     await redis.quit();

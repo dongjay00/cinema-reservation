@@ -37,6 +37,15 @@ function toShowtime(dto: ShowtimeDto): Showtime {
 }
 
 function toSeatAvailability(dto: SeatAvailabilityDto): SeatAvailability {
-  const [row, number] = dto.seatLabel.split("-");
-  return { seat: new Seat(row, Number(number)), available: dto.available };
+  const dash = dto.seatLabel.lastIndexOf("-");
+  if (dash === -1) {
+    throw new Error(`Invalid seat label: ${dto.seatLabel}`);
+  }
+  return {
+    seat: new Seat(
+      dto.seatLabel.slice(0, dash),
+      Number(dto.seatLabel.slice(dash + 1)),
+    ),
+    available: dto.available,
+  };
 }

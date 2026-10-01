@@ -21,13 +21,27 @@ describe("parseReservationEvent", () => {
       JSON.stringify({
         type: "ReservationCancelled",
         reservationId: "res-1",
+        showtimeId: "showtime-1",
         customerEmail: "hoon@example.com",
       }),
     );
     expect(dto.type).toBe("ReservationCancelled");
+    expect(dto.showtimeId).toBe("showtime-1");
   });
 
   it("알 수 없는 페이로드면 에러를 던진다", () => {
     expect(() => parseReservationEvent('{"type":"Nope"}')).toThrow();
+  });
+
+  it("형식이 깨진 JSON이면 에러를 던진다", () => {
+    expect(() => parseReservationEvent("{not-json")).toThrow();
+  });
+
+  it("타입이 맞아도 필드가 빠지면 거부한다", () => {
+    expect(() =>
+      parseReservationEvent(
+        JSON.stringify({ type: "ReservationCancelled", reservationId: "r" }),
+      ),
+    ).toThrow("Unknown reservation event payload");
   });
 });
