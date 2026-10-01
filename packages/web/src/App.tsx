@@ -100,6 +100,7 @@ export default function App() {
     setError(undefined);
     try {
       setReservation(await reserveSeat.execute(draft));
+      setSelectedSeat(undefined);
       await refreshSeats();
     } catch (err) {
       if (err instanceof DuplicateSeatError) {
@@ -120,6 +121,7 @@ export default function App() {
     setError(undefined);
     try {
       setReservation(await cancelReservation.execute(reservation.id));
+      setSelectedSeat(undefined);
       await refreshSeats();
     } catch (err) {
       setError(err instanceof Error ? err.message : "취소에 실패했습니다.");

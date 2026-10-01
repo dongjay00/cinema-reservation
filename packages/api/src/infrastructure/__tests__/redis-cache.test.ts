@@ -66,7 +66,7 @@ describe.skipIf(!redisUrl)("RedisCache", () => {
 
     expect(delegate.calls).toBe(1);
     expect(second[0]).toBeInstanceOf(Seat);
-    expect(second[0]!.label).toBe("A-1");
+    expect(second[0]?.label).toBe("A-1");
     expect(second).toEqual(first);
   });
 });
