@@ -8,6 +8,7 @@ import { createApp } from "./infrastructure/http/app";
 import { InMemoryCache } from "./infrastructure/in-memory-cache";
 import { NotificationEventPublisher } from "./infrastructure/notification-event-publisher";
 import { RedisCache } from "./infrastructure/redis-cache";
+import { RedisStreamEventPublisher } from "./infrastructure/redis-stream-event-publisher";
 
 const databaseUrl = process.env.DATABASE_URL;
 const redisUrl = process.env.REDIS_URL;
@@ -21,7 +22,10 @@ const repository = databaseUrl
     )
   : new DrizzleSqliteReservationRepository(new Database("data.db"));
 
-const publisher = new NotificationEventPublisher();
+const redis = redisUrl ? new Redis(redisUrl) : undefined;
+const publisher = redis
+  ? new RedisStreamEventPublisher(redis)
+  : new NotificationEventPublisher();
 const app = createApp(
   repository,
   publisher,

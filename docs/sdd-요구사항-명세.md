@@ -341,6 +341,45 @@ Feature: 영화 좌석 예약
 - Redis 스왑(M8.5): 캐시 계약 그대로, 구현만 ioredis로 교체 — 포트 소유권의 재현. 다만 **원격 캐시는 "경계에선 전송 가능한 형태로 변환"을 강제**한다: `Seat` 클래스 인스턴스는 직렬화되면 프로토타입/`equals()`/`label` getter를 잃으므로, 데코레이터가 프로젝션(`{row,number}[]`)만 캐시하고 힛 시 재구성. 캐시 계약은 "JSON 안전 데이터"라는 암묵적 규칙이 생겼고 InMemory·Redis 모두 준수. TTL은 `EX`(초 단위) 대신 `PX`(ms)로 포트의 ms 규약을 유지.
 - 결과: api 69 + web 19(Redis 테스트는 로컬/CI 모두 `REDIS_URL` 있어서 실제 실행, 없으면 skip).
 
+### M9: MSA 기초 — 이벤트가 서비스 경계를 건넌다 (2026-09-30)
+
+**목표** — M4의 도메인 이벤트가 **같은 프로세스의 console 출력이 아니라 진짜 별도 서비스로 전달**되는, "서비스 분리 + 비동기 통신"의 최소 버전을 실습한다. api(**작성자**)와 신규 `@cinema/worker`(**구독자**)로 쪼갠다. 브로커는 Kafka 대신 **Redis Stream**을 사용(consumer group·ACK라는 개념은 동일, 이미 확보된 인프라).
+
+**설계**
+
+- **shared 계약**: `ReservationEventDto`(판별 유니온 — `ReservationCreated`/`ReservationCancelled`) + `RESERVATION_EVENT_STREAM = "stream:reservations"` 상수. DTO 계약은 shared가 소유하므로 작성자/구독자가 같은 타입으로 직렬화·역직렬화.
+- **api**: `RedisStreamEventPublisher implements EventPublisher`(M4 포트 재사용, 유스케이스·도메인 0줄) — 이벤트를 DTO로 변환(`toReservationEventDto`, 순수 함수) → `XADD stream:* payload <JSON>`. 조립 루트에서 `NotificationEventPublisher` 교체.
+- **worker(신규 워크스페이스)**: 자체 tsconfig/vitest, 의존은 `@cinema/shared` + `ioredis`뿐. `NotificationWorker`가 `XREADGROUP GROUP notifier COUNT 10 BLOCK 1000 STREAMS >`로 소비 → 파싱(`parseReservationEvent`, 순수) → `NotificationSink.notify`(console 데모) → `XACK`. `ensureGroup()`으로 그룹 신규 생성(`MKSTREAM`, BUSYGROUP 무시).
+- **전달 보증**: at-least-once(XACK에 의존) — 중복·재처리 가능성을 인지하고, **멱등 처리(추적 id 기반 중복 방지)는 스코프 밖**으로 문서화.
+- **한계 명시**: `publish()`는 `save()` 이후 호출이라 프로세스 중단 시 이벤트 손실 위험이 있음 → **transactional outbox**(예약+이벤트 row를 같은 트랜잭션에)가 다음 진화 지점으로 남음.
+- **테스트**: api — DTO 매핑(순수) 2 + 발행(Redis 선택 통합) 1. worker — 파싱 2 + `runOnce`(가짜 Redis 주입) 1 + 통합(Redis 선택) 1 + 아키텍처 가드 1.
+
+**인수 기준**
+
+| AC | 설명 |
+|---|---|
+| AC-44 | api 어댑터가 이벤트를 Redis Stream으로 `XADD` 발행한다(페이로드 JSON, shared DTO 계약). |
+| AC-45 | worker가 consumer group으로 소비해 알림 처리 후 `XACK`한다. |
+| AC-46 | api 애플리케이션(유스케이스·도메인·라우트) 0줄 변경 — 포트 교체만으로 작성자측 완료. |
+| AC-47 | 웹 0줄 변경(외부 서비스 분리). `REDIS_URL` 미제공 시 기존 인메모리 경로로 폴백. |
+
+**검증**
+
+- api: 신규 3(`REDIS_URL` 제공 시) → **72**, worker: 신규 6(통합 포함) → **6**, web 19. 전체 `npm test`(api → worker → web) + typecheck·lint·빌드.
+
+**학습 메모**
+
+- 서비스를 실제로 쪼갰다: api(작성자) ↔ worker(구독자)는 **`@cinema/shared` 계약으로만 결합**. `ReservationEventDto`가 "선(send)에는 쓰고 받는 쪽이 읽는" 두 서비스 사이의 계약이 됨.
+- 작성자 입장의 포트: `EventPublisher`가 "알림을 발신한다"는 의도만 남기고, 전달 방식(console → Redis Stream)은 조립 루트에서 교체 — 도메인·유스케이스 0줄(AC-46).
+- **at-least-once 체감**: `XREADGROUP` + `XACK`. "읽었지만 ACK 전에 죽으면 그 메시지는 다른 소비자에게 다시 배달된다" → 중복 재처리의 대가를 멱등으로 치러야 한다. 이번엔 관찰만 하고 멱등(추적 id)은 스코프 밖으로 명시.
+- 실수 3건(모두 "드라이버 타입을 믿지 말고 실제 출력을 찍어보라"로 정리):
+  - 리모트 반환 형태가 명령마다 다르다 — `xreadgroup`은 `[stream, entries]`로 감싸지만 **`xrevrange`/`xrange`는 `[id, fields]` 평평 목록**. 잘못 가정해서 `fields`의 두 번째 글자 `"a"`를 `JSON.parse`했다.
+  - Stream 필드는 `[키,값]` 튜플이 아니라 **평평한 `string[]`**(`["payload","{...}"]`). 그리고 ioredis 타입은 **null 허용**이라 `?? []`로 방어.
+  - `XGROUP CREATE ... $`는 **그룹 생성 이후 메시지만** 배달 → "브로커 먼저, 발행 나중" 순서가 맞다(통합 테스트에서 `ensureGroup`을 `xadd`보다 먼저).
+- 테스트의 캐시 키 위생: 고정 키 + 긴 TTL은 **이전 실행의 캐시가 살아 있어 첫 조회가 캐시 적중**하는 flake를 만든다 → 테스트 선두에서 `del`(AC-42가 이전 결과로 2회 연속 실패한 사례).
+- 결과: api 72(무 env 57+15 skip) / worker 6(무 env 5+1 skip) / web 19. 전체 가드(worker는 `@cinema/shared` 외 워크스페이스 import 금지) 통과.
+- 남은 과제(문서로만): transactional outbox(손실 방어), 이벤트 멱등(중복 소비 방어), 이벤트 기반 캐시 무효화(M4+M8 연결).
+
 ### M6: 예약 목록 / 마이페이지 (2026-09-30)
 
 **목표** — 인증 없이 **이메일로 "내 예약"**을 조회하고 목록에서 취소까지 할 수 있게 한다. api는 조회 쿼리 포트, 웹은 프레젠테이션 쿼리(그리고 그 쿼리가 바라보는 DTO)를 추가.

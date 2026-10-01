@@ -10,7 +10,8 @@ Clean Architecture · 객체지향 · SOLID를 **SDD → DDD → TDD** 스프린
 |---|---|
 | 프론트엔드 | React 19 · Vite · TypeScript |
 | 백엔드 | Express 5 · Drizzle ORM — SQLite/better-sqlite3(기본), 선택적으로 Postgres 18 (raw SQL 저장소는 학습용 레거시로 유지) · 캐시 — TTL 인메모리(기본) / Redis(선택) |
-| 테스트 | Vitest + Supertest (api 69, web 19) + 아키텍처 가드 |
+| 워커 | @cinema/worker — Redis Stream 컨슈머 (consumer group + XACK, 이벤트 알림 데모) |
+| 테스트 | Vitest + Supertest (api 72, worker 6, web 19) + 아키텍처 가드 |
 | 린트 · 포맷 | Biome (루트 단일 설정) |
 | CI | GitHub Actions (lint · typecheck · test · build + postgres service) |
 
@@ -21,6 +22,7 @@ clean-architecture/
 ├─ packages/shared   프론트/백엔드 간 공유 DTO 계약
 ├─ packages/api      Express API (도메인 · 유스케이스 · 인프라)
 ├─ packages/web      React 클라이언트 (동일한 레이어 미러)
+├─ packages/worker   이벤트 알림 컨슈머 (Redis Stream 구독)
 └─ docs/             SDD/DDD/TDD 방법론 문서
 ```
 
@@ -50,6 +52,7 @@ infrastructure HTTP 어댑터 · 저장소 구현 · 조립(Composition Root)
 npm install
 
 npm run dev:api    # API @ http://localhost:4000 (DB 미지정 시 SQLite)
+npm run dev:worker  # 예약 이벤트 알림 컨슈머 (Redis Stream)
 npm run dev:web    # 웹 @ http://localhost:5173
 ```
 
@@ -62,15 +65,15 @@ docker compose up -d          # postgres 18 컨테이너
 DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 ```
 
-`DATABASE_URL`을 주면 API가 Postgres 저장소를 사용합니다. 주지 않으면 SQLite 폴백 — 저장소 선택은 `index.ts`(Composition Root) 한 곳에서만 일어납니다. 캐시도 동일하게 `REDIS_URL`을 주면 Redis, 없으면 인메모리 폴백입니다.
+`DATABASE_URL`을 주면 API가 Postgres 저장소를 사용합니다. 주지 않으면 SQLite 폴백 — 저장소 선택은 `index.ts`(Composition Root) 한 곳에서만 일어납니다. 캐시는 `REDIS_URL`을 주면 Redis(놓으면 인메모리), 알림 발행도 `REDIS_URL`이 있으면 Redis Stream으로 나가 `dev:worker`가 구독합니다.
 
 ## 스크립트
 
 | 명령 | 동작 |
 |---|---|
-| `npm run dev:api` / `dev:web` | 개발 서버 (tsx watch / vite) |
-| `npm test` | api + web 전체 테스트 (api 69 · web 19 — DB/Redis 미지정 시 pg·redis 일부 제외) |
-| `npm run test:api` / `test:web` | 각 워크스페이스 테스트 |
+| `npm run dev:api` / `dev:worker` / `dev:web` | 개발 서버 (tsx watch / vite) |
+| `npm test` | api + worker + web 전체 테스트 (api 72 · worker 6 · web 19 — env 미지정 시 pg·redis 일부 제외) |
+| `npm run test:api` / `test:worker` / `test:web` | 각 워크스페이스 테스트 |
 | `npm run typecheck` | 전 워크스페이스 타입 검사 |
 | `npm run lint` | biome 검사 (포맷 + 린트) |
 | `npm run lint:fix` | biome 자동 수정 |
@@ -94,4 +97,4 @@ DATABASE_URL=postgres://cinema:cinema@localhost:5432/cinema npm run dev:api
 | 6 | 예약 목록 / 마이페이지 | ✅ |
 | 7 | ORM 교체 (raw SQL → Drizzle) | ✅ |
 | 8 | 캐싱 (좌석 TTL — 인메모리 + Redis 어댑터) | ✅ |
-| 9 | MSA 기초 | |
+| 9 | MSA 기초 (Redis Stream 이벤트 + 알림 워커) | ✅ |

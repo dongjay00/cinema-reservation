@@ -1,0 +1,16 @@
+{
+  "name": "@cinema/worker",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cinema/shared": "*",
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}

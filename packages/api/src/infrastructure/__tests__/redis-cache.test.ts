@@ -46,6 +46,7 @@ describe.skipIf(!redisUrl)("RedisCache", () => {
       }
     }
     const delegate = new Spy();
+    await redis.del("showtime:showtime-1:seats");
     const query = new CachingShowtimeSeatsQuery(
       delegate,
       new RedisCache(redis),

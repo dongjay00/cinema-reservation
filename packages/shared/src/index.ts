@@ -33,3 +33,20 @@ export interface SeatAvailabilityDto {
   seatLabel: string;
   available: boolean;
 }
+
+export type ReservationEventDto =
+  | {
+      type: "ReservationCreated";
+      reservationId: string;
+      showtimeId: string;
+      seatRow: string;
+      seatNumber: number;
+      customerEmail: string;
+    }
+  | {
+      type: "ReservationCancelled";
+      reservationId: string;
+      customerEmail: string;
+    };
+
+export const RESERVATION_EVENT_STREAM = "stream:reservations";

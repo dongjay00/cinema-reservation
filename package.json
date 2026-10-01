@@ -4,9 +4,11 @@
   "scripts": {
     "dev:api": "npm run dev --workspace @cinema/api",
     "dev:web": "npm run dev --workspace @cinema/web",
+    "dev:worker": "npm run dev --workspace @cinema/worker",
     "test:api": "npm run test --workspace @cinema/api",
     "test:web": "npm run test --workspace @cinema/web",
-    "test": "npm run test:api && npm run test:web",
+    "test:worker": "npm run test --workspace @cinema/worker",
+    "test": "npm run test:api && npm run test:worker && npm run test:web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
